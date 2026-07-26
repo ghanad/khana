@@ -419,11 +419,6 @@ button:disabled {
   unicode-bidi: isolate;
 }
 
-.ltr-run {
-  direction: ltr;
-  unicode-bidi: isolate;
-}
-
 .rendered-text p {
   margin: 0 0 1.25em;
   white-space: pre-wrap;

@@ -1,6 +1,9 @@
 "use client";
 
+import bidiFactory from "bidi-js";
 import { Fragment, useMemo, useRef, useState } from "react";
+
+const bidi = bidiFactory();
 
 const sampleText = `SQLite روزانه سنگین نمی‌شود؛ حتی هزاران رکورد حجم ناچیزی دارند. اما پاک‌کردن روزانه state یک پیامد دارد: اگر فردا همان Image دوباره در JFrog اینترنت دریافت شود، مجدداً وارد Data Diode خواهد شد.
 
@@ -97,32 +100,21 @@ function parseBlocks(input: string): Block[] {
 }
 
 function getTextDirection(text: string): "rtl" | "ltr" {
+  let rtlCount = 0;
+  let ltrCount = 0;
+
   for (const character of text) {
-    if (/[\u0590-\u08FF]/.test(character)) return "rtl";
-    if (/[A-Za-z]/.test(character)) return "ltr";
+    const type = bidi.getBidiCharTypeName(character);
+    if (type === "R" || type === "AL") rtlCount += 1;
+    if (type === "L") ltrCount += 1;
   }
 
-  return "rtl";
-}
+  if (rtlCount !== ltrCount) {
+    return rtlCount > ltrCount ? "rtl" : "ltr";
+  }
 
-function DirectionalText({ children }: { children: string }) {
-  const directionalParts = children.split(
-    /([A-Za-z0-9][A-Za-z0-9@._:/+#%?=&-]*(?:[ \t]+[A-Za-z0-9][A-Za-z0-9@._:/+#%?=&-]*)*[\u0600-\u06FF\u200c\u200d]*)/g,
-  );
-
-  return (
-    <>
-      {directionalParts.map((part, index) =>
-        /[A-Za-z0-9]/.test(part) ? (
-          <bdi className="ltr-run" dir="ltr" key={index}>
-            {part}
-          </bdi>
-        ) : (
-          <Fragment key={index}>{part}</Fragment>
-        ),
-      )}
-    </>
-  );
+  const paragraph = bidi.getEmbeddingLevels(text).paragraphs[0];
+  return paragraph && paragraph.level % 2 === 1 ? "rtl" : "ltr";
 }
 
 function InlineText({ children }: { children: string }) {
@@ -135,17 +127,9 @@ function InlineText({ children }: { children: string }) {
           return <code key={index}>{part.slice(1, -1)}</code>;
         }
         if (part.startsWith("**") && part.endsWith("**")) {
-          return (
-            <strong key={index}>
-              <DirectionalText>{part.slice(2, -2)}</DirectionalText>
-            </strong>
-          );
+          return <strong key={index}>{part.slice(2, -2)}</strong>;
         }
-        return (
-          <Fragment key={index}>
-            <DirectionalText>{part}</DirectionalText>
-          </Fragment>
-        );
+        return <Fragment key={index}>{part}</Fragment>;
       })}
     </>
   );
