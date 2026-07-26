@@ -5,9 +5,22 @@ import { Fragment, useMemo, useRef, useState } from "react";
 
 const bidi = bidiFactory();
 
-const sampleText = `SQLite روزانه سنگین نمی‌شود؛ حتی هزاران رکورد حجم ناچیزی دارند. اما پاک‌کردن روزانه state یک پیامد دارد: اگر فردا همان Image دوباره در JFrog اینترنت دریافت شود، مجدداً وارد Data Diode خواهد شد.
+const sampleText = `Design می‌تواند ساده، روشن و در عین حال کاربردی باشد؛ مهم این است که هر بخش در جای درست خود قرار بگیرد و خواندن محتوا بدون وقفه پیش برود.
 
-چون فایل‌ها از Data Diode قابل حذف نیستند، این موضوع می‌تواند باعث انباشت نسخه‌های تکراری شود. شاید بهتر باشد سابقه digestها برای مدتی طولانی‌تر حفظ شود یا deduplication اصلی در سمت گیرنده انجام شود.`;
+خواندن یک متن روان نباید به تلاش اضافی نیاز داشته باشد. فاصلهٔ مناسب، انتخاب درست واژه‌ها و چینش منظم جمله‌ها کمک می‌کنند مفهوم نوشته سریع‌تر و دقیق‌تر منتقل شود.
+
+گاهی در یک متن فارسی از واژه‌هایی مانند Product Design، User Experience و Front-end Development استفاده می‌کنیم و انتظار داریم همهٔ آن‌ها در کنار جمله‌های فارسی، مرتب و خوانا نمایش داده شوند.
+
+Clear writing makes complex ideas easier to understand. A well-structured interface should help readers focus on the content without distracting them from the main message.
+
+\`\`\`javascript
+function greet(name) {
+  const message = \`سلام، \${name}!\`;
+  return message;
+}
+
+console.log(greet("خوانا"));
+\`\`\``;
 
 type Block =
   | { type: "code"; content: string; language?: string }
