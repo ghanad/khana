@@ -96,6 +96,26 @@ function parseBlocks(input: string): Block[] {
   return blocks;
 }
 
+function DirectionalText({ children }: { children: string }) {
+  const directionalParts = children.split(
+    /([A-Za-z0-9][A-Za-z0-9@._:/+#%?=&-]*(?:[ \t]+[A-Za-z0-9][A-Za-z0-9@._:/+#%?=&-]*)*[\u0600-\u06FF\u200c\u200d]*)/g,
+  );
+
+  return (
+    <>
+      {directionalParts.map((part, index) =>
+        /[A-Za-z0-9]/.test(part) ? (
+          <bdi className="ltr-run" dir="ltr" key={index}>
+            {part}
+          </bdi>
+        ) : (
+          <Fragment key={index}>{part}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
 function InlineText({ children }: { children: string }) {
   const parts = children.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/g);
 
@@ -106,9 +126,17 @@ function InlineText({ children }: { children: string }) {
           return <code key={index}>{part.slice(1, -1)}</code>;
         }
         if (part.startsWith("**") && part.endsWith("**")) {
-          return <strong key={index}>{part.slice(2, -2)}</strong>;
+          return (
+            <strong key={index}>
+              <DirectionalText>{part.slice(2, -2)}</DirectionalText>
+            </strong>
+          );
         }
-        return <Fragment key={index}>{part}</Fragment>;
+        return (
+          <Fragment key={index}>
+            <DirectionalText>{part}</DirectionalText>
+          </Fragment>
+        );
       })}
     </>
   );
@@ -204,7 +232,7 @@ export default function Home() {
 
             <textarea
               ref={textareaRef}
-              dir="auto"
+              dir="rtl"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder="متن خود را اینجا بنویسید یا بچسبانید…"
@@ -285,7 +313,7 @@ export default function Home() {
                     if (block.type === "heading") {
                       const Heading = `h${block.level + 1}` as "h2" | "h3" | "h4";
                       return (
-                        <Heading key={index} dir="auto">
+                        <Heading key={index} dir="rtl">
                           <InlineText>{block.content}</InlineText>
                         </Heading>
                       );
@@ -296,7 +324,7 @@ export default function Home() {
                       return (
                         <List key={index}>
                           {block.items.map((item, itemIndex) => (
-                            <li key={itemIndex} dir="auto">
+                            <li key={itemIndex} dir="rtl">
                               <InlineText>{item}</InlineText>
                             </li>
                           ))}
@@ -306,14 +334,14 @@ export default function Home() {
 
                     if (block.type === "quote") {
                       return (
-                        <blockquote key={index} dir="auto">
+                        <blockquote key={index} dir="rtl">
                           <InlineText>{block.content}</InlineText>
                         </blockquote>
                       );
                     }
 
                     return (
-                      <p key={index} dir="auto">
+                      <p key={index} dir="rtl">
                         <InlineText>{block.content}</InlineText>
                       </p>
                     );
