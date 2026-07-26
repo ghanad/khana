@@ -49,6 +49,7 @@ a:focus-visible {
 
 .app {
   min-height: 100vh;
+  color: var(--ink);
   background:
     radial-gradient(circle at 8% 12%, rgba(218, 232, 220, 0.8), transparent 28rem),
     radial-gradient(circle at 90% 36%, rgba(235, 227, 209, 0.7), transparent 30rem),
