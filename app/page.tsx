@@ -96,6 +96,15 @@ function parseBlocks(input: string): Block[] {
   return blocks;
 }
 
+function getTextDirection(text: string): "rtl" | "ltr" {
+  for (const character of text) {
+    if (/[\u0590-\u08FF]/.test(character)) return "rtl";
+    if (/[A-Za-z]/.test(character)) return "ltr";
+  }
+
+  return "rtl";
+}
+
 function DirectionalText({ children }: { children: string }) {
   const directionalParts = children.split(
     /([A-Za-z0-9][A-Za-z0-9@._:/+#%?=&-]*(?:[ \t]+[A-Za-z0-9][A-Za-z0-9@._:/+#%?=&-]*)*[\u0600-\u06FF\u200c\u200d]*)/g,
@@ -232,7 +241,7 @@ export default function Home() {
 
             <textarea
               ref={textareaRef}
-              dir="rtl"
+              dir="auto"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder="متن خود را اینجا بنویسید یا بچسبانید…"
@@ -313,7 +322,7 @@ export default function Home() {
                     if (block.type === "heading") {
                       const Heading = `h${block.level + 1}` as "h2" | "h3" | "h4";
                       return (
-                        <Heading key={index} dir="rtl">
+                        <Heading key={index} dir={getTextDirection(block.content)}>
                           <InlineText>{block.content}</InlineText>
                         </Heading>
                       );
@@ -322,9 +331,12 @@ export default function Home() {
                     if (block.type === "list") {
                       const List = block.ordered ? "ol" : "ul";
                       return (
-                        <List key={index}>
+                        <List
+                          key={index}
+                          dir={getTextDirection(block.items[0] ?? "")}
+                        >
                           {block.items.map((item, itemIndex) => (
-                            <li key={itemIndex} dir="rtl">
+                            <li key={itemIndex} dir={getTextDirection(item)}>
                               <InlineText>{item}</InlineText>
                             </li>
                           ))}
@@ -334,14 +346,17 @@ export default function Home() {
 
                     if (block.type === "quote") {
                       return (
-                        <blockquote key={index} dir="rtl">
+                        <blockquote
+                          key={index}
+                          dir={getTextDirection(block.content)}
+                        >
                           <InlineText>{block.content}</InlineText>
                         </blockquote>
                       );
                     }
 
                     return (
-                      <p key={index} dir="rtl">
+                      <p key={index} dir={getTextDirection(block.content)}>
                         <InlineText>{block.content}</InlineText>
                       </p>
                     );

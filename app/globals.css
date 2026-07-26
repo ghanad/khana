@@ -288,11 +288,10 @@ textarea {
   padding: 30px;
   color: var(--ink);
   background: transparent;
-  direction: rtl;
   font-size: 17px;
   line-height: 2.15;
-  text-align: right;
-  unicode-bidi: isolate;
+  text-align: start;
+  unicode-bidi: plaintext;
 }
 
 textarea::placeholder {
@@ -407,8 +406,6 @@ button:disabled {
 .rendered-text {
   max-width: 740px;
   margin: 0 auto;
-  direction: rtl;
-  text-align: right;
 }
 
 .rendered-text p,
@@ -417,7 +414,7 @@ button:disabled {
 .rendered-text h2,
 .rendered-text h3,
 .rendered-text h4 {
-  direction: rtl;
+  text-align: start;
   unicode-bidi: isolate;
 }
 
@@ -454,13 +451,14 @@ button:disabled {
 .rendered-text ul,
 .rendered-text ol {
   margin: 0 0 1.4em;
-  padding-right: 1.5em;
+  padding-inline-start: 1.5em;
 }
 
 .rendered-text li {
   margin: 0.35em 0;
-  padding-right: 0.3em;
+  padding-inline-start: 0.3em;
   line-height: 2;
+  text-align: start;
 }
 
 .rendered-text li::marker {
@@ -470,8 +468,9 @@ button:disabled {
 
 .rendered-text blockquote {
   margin: 1.3em 0;
-  padding: 0.3em 1.1em 0.3em 0;
-  border-right: 3px solid var(--accent);
+  padding-block: 0.3em;
+  padding-inline-start: 1.1em;
+  border-inline-start: 3px solid var(--accent);
   color: var(--muted);
   line-height: 2;
 }
