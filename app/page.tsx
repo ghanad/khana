@@ -1,0 +1,349 @@
+"use client";
+
+import { Fragment, useMemo, useRef, useState } from "react";
+
+const sampleText = `SQLite روزانه سنگین نمی‌شود؛ حتی هزاران رکورد حجم ناچیزی دارند. اما پاک‌کردن روزانه state یک پیامد دارد: اگر فردا همان Image دوباره در JFrog اینترنت دریافت شود، مجدداً وارد Data Diode خواهد شد.
+
+چون فایل‌ها از Data Diode قابل حذف نیستند، این موضوع می‌تواند باعث انباشت نسخه‌های تکراری شود. شاید بهتر باشد سابقه digestها برای مدتی طولانی‌تر حفظ شود یا deduplication اصلی در سمت گیرنده انجام شود.`;
+
+type Block =
+  | { type: "code"; content: string; language?: string }
+  | { type: "heading"; content: string; level: number }
+  | { type: "list"; items: string[]; ordered: boolean }
+  | { type: "quote"; content: string }
+  | { type: "paragraph"; content: string };
+
+function parseBlocks(input: string): Block[] {
+  const lines = input.replace(/\r\n/g, "\n").split("\n");
+  const blocks: Block[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("```")) {
+      const language = line.slice(3).trim();
+      const code: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].startsWith("```")) {
+        code.push(lines[index]);
+        index += 1;
+      }
+      blocks.push({ type: "code", content: code.join("\n"), language });
+      index += 1;
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      blocks.push({
+        type: "heading",
+        level: heading[1].length,
+        content: heading[2],
+      });
+      index += 1;
+      continue;
+    }
+
+    const unordered = line.match(/^\s*[-*]\s+(.+)$/);
+    const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (unordered || ordered) {
+      const isOrdered = Boolean(ordered);
+      const items: string[] = [];
+      while (index < lines.length) {
+        const match = isOrdered
+          ? lines[index].match(/^\s*\d+[.)]\s+(.+)$/)
+          : lines[index].match(/^\s*[-*]\s+(.+)$/);
+        if (!match) break;
+        items.push(match[1]);
+        index += 1;
+      }
+      blocks.push({ type: "list", items, ordered: isOrdered });
+      continue;
+    }
+
+    if (line.startsWith("> ")) {
+      const quote: string[] = [];
+      while (index < lines.length && lines[index].startsWith("> ")) {
+        quote.push(lines[index].slice(2));
+        index += 1;
+      }
+      blocks.push({ type: "quote", content: quote.join(" ") });
+      continue;
+    }
+
+    const paragraph = [line];
+    index += 1;
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !/^(#{1,3})\s+/.test(lines[index]) &&
+      !/^```/.test(lines[index]) &&
+      !/^\s*([-*]|\d+[.)])\s+/.test(lines[index]) &&
+      !/^>\s/.test(lines[index])
+    ) {
+      paragraph.push(lines[index]);
+      index += 1;
+    }
+    blocks.push({ type: "paragraph", content: paragraph.join("\n") });
+  }
+
+  return blocks;
+}
+
+function InlineText({ children }: { children: string }) {
+  const parts = children.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith("`") && part.endsWith("`")) {
+          return <code key={index}>{part.slice(1, -1)}</code>;
+        }
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return <strong key={index}>{part.slice(2, -2)}</strong>;
+        }
+        return <Fragment key={index}>{part}</Fragment>;
+      })}
+    </>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="empty-state">
+      <div className="empty-mark" aria-hidden="true">
+        خوانا
+      </div>
+      <h2>متن شما اینجا جان می‌گیرد</h2>
+      <p>متن فارسی یا ترکیبی را در کادر روبه‌رو وارد کنید.</p>
+    </div>
+  );
+}
+
+export default function Home() {
+  const [text, setText] = useState("");
+  const [fontSize, setFontSize] = useState(20);
+  const [darkMode, setDarkMode] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const blocks = useMemo(() => parseBlocks(text), [text]);
+  const characterCount = text.length.toLocaleString("fa-IR");
+
+  async function pasteText() {
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      setText(clipboardText);
+      textareaRef.current?.focus();
+    } catch {
+      textareaRef.current?.focus();
+    }
+  }
+
+  async function copyText() {
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <main className={darkMode ? "app theme-dark" : "app"}>
+      <div className="page-shell">
+        <header className="site-header">
+          <a className="brand" href="#" aria-label="خوانا، صفحه اصلی">
+            <span className="brand-mark" aria-hidden="true">
+              خ
+            </span>
+            <span>
+              <strong>خوانا</strong>
+              <small>متن فارسی، بی‌دردسر</small>
+            </span>
+          </a>
+
+          <div className="header-actions">
+            <span className="privacy-note">
+              <i aria-hidden="true" />
+              متن شما ذخیره نمی‌شود
+            </span>
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => setDarkMode((current) => !current)}
+              aria-label={darkMode ? "فعال‌کردن حالت روشن" : "فعال‌کردن حالت تیره"}
+              title={darkMode ? "حالت روشن" : "حالت تیره"}
+            >
+              <span aria-hidden="true">{darkMode ? "☀" : "☾"}</span>
+            </button>
+          </div>
+        </header>
+
+        <section className="intro" aria-labelledby="page-title">
+          <span className="eyebrow">ابزار سادهٔ خواندن متن</span>
+          <h1 id="page-title">متن‌های درهم را، درست و روان بخوانید.</h1>
+          <p>
+            متن فارسیِ ترکیب‌شده با کلمات انگلیسی، کد و اعداد را اینجا بچسبانید؛
+            «خوانا» جهت و فاصله‌ها را برای مطالعه‌ای آرام‌تر مرتب می‌کند.
+          </p>
+        </section>
+
+        <section className="workspace" aria-label="ویرایشگر و پیش‌نمایش متن">
+          <article className="panel input-panel">
+            <div className="panel-header">
+              <div>
+                <span className="step">۱</span>
+                <h2>متن را وارد کنید</h2>
+              </div>
+              <span className="counter">{characterCount} نویسه</span>
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              dir="auto"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              placeholder="متن خود را اینجا بنویسید یا بچسبانید…"
+              aria-label="متن ورودی"
+              spellCheck="false"
+            />
+
+            <div className="panel-footer input-footer">
+              <button className="text-button" type="button" onClick={pasteText}>
+                چسباندن از کلیپ‌بورد
+              </button>
+              <div className="input-secondary-actions">
+                <button
+                  className="quiet-button"
+                  type="button"
+                  onClick={() => setText(sampleText)}
+                >
+                  متن نمونه
+                </button>
+                <button
+                  className="quiet-button danger"
+                  type="button"
+                  onClick={() => setText("")}
+                  disabled={!text}
+                >
+                  پاک‌کردن
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article className="panel preview-panel">
+            <div className="panel-header">
+              <div>
+                <span className="step">۲</span>
+                <h2>آرام بخوانید</h2>
+              </div>
+              <div className="reader-tools" aria-label="تنظیم اندازه متن">
+                <button
+                  type="button"
+                  onClick={() => setFontSize((size) => Math.max(16, size - 2))}
+                  aria-label="کوچک‌تر کردن متن"
+                  disabled={fontSize === 16}
+                >
+                  −
+                </button>
+                <span>{fontSize.toLocaleString("fa-IR")}</span>
+                <button
+                  type="button"
+                  onClick={() => setFontSize((size) => Math.min(28, size + 2))}
+                  aria-label="بزرگ‌تر کردن متن"
+                  disabled={fontSize === 28}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div
+              className="reader"
+              style={{ "--reader-size": `${fontSize}px` } as React.CSSProperties}
+              aria-live="polite"
+            >
+              {!text.trim() ? (
+                <EmptyState />
+              ) : (
+                <div className="rendered-text">
+                  {blocks.map((block, index) => {
+                    if (block.type === "code") {
+                      return (
+                        <div className="code-block" key={index} dir="ltr">
+                          {block.language && <small>{block.language}</small>}
+                          <pre>{block.content}</pre>
+                        </div>
+                      );
+                    }
+
+                    if (block.type === "heading") {
+                      const Heading = `h${block.level + 1}` as "h2" | "h3" | "h4";
+                      return (
+                        <Heading key={index} dir="auto">
+                          <InlineText>{block.content}</InlineText>
+                        </Heading>
+                      );
+                    }
+
+                    if (block.type === "list") {
+                      const List = block.ordered ? "ol" : "ul";
+                      return (
+                        <List key={index}>
+                          {block.items.map((item, itemIndex) => (
+                            <li key={itemIndex} dir="auto">
+                              <InlineText>{item}</InlineText>
+                            </li>
+                          ))}
+                        </List>
+                      );
+                    }
+
+                    if (block.type === "quote") {
+                      return (
+                        <blockquote key={index} dir="auto">
+                          <InlineText>{block.content}</InlineText>
+                        </blockquote>
+                      );
+                    }
+
+                    return (
+                      <p key={index} dir="auto">
+                        <InlineText>{block.content}</InlineText>
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="panel-footer">
+              <span className="format-note">پشتیبانی از متن ساده و Markdown</span>
+              <button
+                className="copy-button"
+                type="button"
+                onClick={copyText}
+                disabled={!text}
+              >
+                {copied ? "کپی شد ✓" : "کپی متن"}
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <footer className="site-footer">
+          <p>
+            «خوانا» همه‌چیز را روی دستگاه شما انجام می‌دهد؛ چیزی به سرور فرستاده
+            نمی‌شود.
+          </p>
+          <span>ساخته‌شده برای واژه‌هایی که شایستهٔ خوب خوانده‌شدن‌اند.</span>
+        </footer>
+      </div>
+    </main>
+  );
+}
