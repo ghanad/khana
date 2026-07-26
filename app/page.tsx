@@ -205,11 +205,13 @@ export default function Home() {
         </header>
 
         <section className="intro" aria-labelledby="page-title">
-          <span className="eyebrow">ابزار سادهٔ خواندن متن</span>
-          <h1 id="page-title">متن‌های درهم را، درست و روان بخوانید.</h1>
+          <div className="intro-heading">
+            <span className="eyebrow">ابزار خواندن متن</span>
+            <h1 id="page-title">متن‌های درهم را، درست و روان بخوانید.</h1>
+          </div>
           <p>
-            متن فارسیِ ترکیب‌شده با کلمات انگلیسی، کد و اعداد را اینجا بچسبانید؛
-            «خوانا» جهت و فاصله‌ها را برای مطالعه‌ای آرام‌تر مرتب می‌کند.
+            متن فارسیِ ترکیب‌شده با انگلیسی، کد و عدد را بچسبانید؛ «خوانا» جهت
+            و فاصله‌ها را برای مطالعه‌ای آرام‌تر مرتب می‌کند.
           </p>
         </section>
 
