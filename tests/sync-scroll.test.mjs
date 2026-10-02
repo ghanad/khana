@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { getBlockLineRanges, parseBlocks } from "../app/lib/parse-blocks.ts";
-import { interpolateScroll } from "../app/lib/sync-scroll.ts";
+import {
+  getSynchronizedScrollForTextarea,
+  getSynchronizedTextareaScroll,
+  interpolateScroll,
+} from "../app/lib/sync-scroll.ts";
 
 test("getBlockLineRanges returns matching count with parseBlocks", () => {
   const markdown = `# Title
@@ -100,4 +104,119 @@ test("interpolateScroll is monotonic", () => {
 test("interpolateScroll handles single anchor and zero length gracefully", () => {
   assert.equal(interpolateScroll(50, [], []), 0);
   assert.equal(interpolateScroll(50, [0], [0]), 0);
+});
+
+test("getSynchronizedTextareaScroll handles edge cases when environment is missing or empty", () => {
+  assert.equal(getSynchronizedTextareaScroll(null, null, [], 0), 0);
+  assert.equal(getSynchronizedTextareaScroll(null, null, [0, 100], 0), 0);
+});
+
+test("getSynchronizedScrollForTextarea handles edge cases when environment is missing or empty", () => {
+  assert.deepEqual(getSynchronizedScrollForTextarea(null, null, [], 0), {
+    targetWindowY: 0,
+    targetReaderTop: 0,
+  });
+});
+
+test("getSynchronizedTextareaScroll calculates accurate scrollTop with mock DOM", () => {
+  const originalWindow = globalThis.window;
+  try {
+    globalThis.window = {
+      innerHeight: 800,
+      scrollY: 100,
+      getComputedStyle: () => ({ paddingTop: "30px" }),
+    };
+
+    const mockTextarea = {
+      scrollHeight: 2000,
+      clientHeight: 500,
+      scrollTop: 0,
+      getBoundingClientRect: () => ({ top: 100, bottom: 600 }),
+    };
+
+    // 3 blocks in reader
+    // refY = Math.max(100 + 30, Math.min(200, 540)) = 130
+    // Block 0: top 50, next block 1 at top 150 -> span 100, progress at refY=130 is (130-50)/100 = 0.8
+    // In textarea: block 0 lineTop=0, block 1 lineTop=100 -> targetLineTop = 0 + 0.8 * 100 = 80
+    // scrollTop = targetLineTop + textareaContentTop - refY = 80 + 130 - 130 = 80
+    const mockBlocks = [
+      { getBoundingClientRect: () => ({ top: 50, bottom: 150 }) },
+      { getBoundingClientRect: () => ({ top: 150, bottom: 300 }) },
+      { getBoundingClientRect: () => ({ top: 300, bottom: 500 }) },
+    ];
+
+    const mockReader = {
+      querySelector: (selector) => {
+        const match = selector.match(/data-block-index="(\d+)"/);
+        if (!match) return null;
+        return mockBlocks[Number(match[1])] ?? null;
+      },
+    };
+
+    const measuredTops = [0, 100, 300];
+    const targetScroll = getSynchronizedTextareaScroll(
+      mockTextarea,
+      mockReader,
+      measuredTops,
+      3,
+    );
+
+    assert.equal(Math.round(targetScroll), 80);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
+test("getSynchronizedScrollForTextarea calculates accurate targetWindowY with mock DOM", () => {
+  const originalWindow = globalThis.window;
+  try {
+    globalThis.window = {
+      innerHeight: 800,
+      scrollY: 100,
+      getComputedStyle: () => ({ paddingTop: "30px" }),
+    };
+
+    const mockTextarea = {
+      scrollHeight: 2000,
+      clientHeight: 500,
+      scrollTop: 80,
+      getBoundingClientRect: () => ({ top: 100, bottom: 600 }),
+    };
+
+    const mockBlocks = [
+      {
+        offsetTop: 50,
+        getBoundingClientRect: () => ({ top: 50, bottom: 150 }),
+      },
+      {
+        offsetTop: 150,
+        getBoundingClientRect: () => ({ top: 150, bottom: 300 }),
+      },
+    ];
+
+    const mockReader = {
+      offsetTop: 0,
+      querySelector: (selector) => {
+        const match = selector.match(/data-block-index="(\d+)"/);
+        if (!match) return null;
+        return mockBlocks[Number(match[1])] ?? null;
+      },
+    };
+
+    const measuredTops = [0, 100];
+    const { targetWindowY } = getSynchronizedScrollForTextarea(
+      mockTextarea,
+      mockReader,
+      measuredTops,
+      2,
+    );
+
+    // scrollTop=80, refY=130, textareaContentTop=130 -> currentLineTopAtRef = 80
+    // block 0: currentLineTop=0, nextLineTop=100 -> span=100, progress=0.8
+    // pointScreenY in reader = 50 + 0.8 * 100 = 130
+    // delta = 130 - 130 = 0 -> targetWindowY = 100 + 0 = 100
+    assert.equal(Math.round(targetWindowY), 100);
+  } finally {
+    globalThis.window = originalWindow;
+  }
 });

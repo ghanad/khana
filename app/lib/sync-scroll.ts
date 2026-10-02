@@ -86,7 +86,10 @@ export function measureTextareaLineTops(
   mirror.style.boxSizing = "border-box";
   mirror.style.width = `${textarea.clientWidth}px`;
   mirror.style.padding = computed.padding;
-  mirror.style.font = computed.font;
+  mirror.style.fontFamily = computed.fontFamily;
+  mirror.style.fontSize = computed.fontSize;
+  mirror.style.fontWeight = computed.fontWeight;
+  mirror.style.fontStyle = computed.fontStyle;
   mirror.style.lineHeight = computed.lineHeight;
   mirror.style.letterSpacing = computed.letterSpacing;
   mirror.style.whiteSpace = "pre-wrap";
@@ -99,7 +102,7 @@ export function measureTextareaLineTops(
 
   for (let i = 0; i < lines.length; i += 1) {
     if (targetSet.has(i)) {
-      fragments.push(`<span id="khana-line-${i}"></span>`);
+      fragments.push(`<span id="khana-line-${i}">&#8203;</span>`);
     }
     // Escape HTML to prevent injection in mirror
     const escaped = lines[i]
@@ -202,3 +205,151 @@ export function computeScrollAnchors(
 
   return { textareaAnchors, readerAnchors, pageAnchors };
 }
+
+/**
+ * Calculates the exact textarea.scrollTop required to horizontally align the matching
+ * markdown line with whatever rendered block is currently at the viewing line of the screen.
+ */
+export function getSynchronizedTextareaScroll(
+  textarea: HTMLTextAreaElement,
+  reader: HTMLElement,
+  measuredTextareaTops: number[],
+  rangesCount: number,
+): number {
+  if (rangesCount === 0 || measuredTextareaTops.length === 0 || typeof window === "undefined") {
+    return 0;
+  }
+
+  const textareaRect = textarea.getBoundingClientRect();
+  const textareaPaddingTop = parseFloat(window.getComputedStyle(textarea).paddingTop) || 0;
+  const textareaContentTop = textareaRect.top + textareaPaddingTop;
+
+  // The screen Y coordinate where we horizontally align reader and editor:
+  // When near the top of the page, align with the top of the textarea content.
+  // When scrolled down and textareaContentTop goes above the screen,
+  // align at a comfortable reading line (80px from top of viewport).
+  const refY = Math.max(
+    textareaContentTop,
+    Math.min(80, textareaRect.bottom - 60),
+  );
+
+  // Find all block elements
+  const blockEls: HTMLElement[] = [];
+  for (let i = 0; i < rangesCount; i += 1) {
+    const el = reader.querySelector(`[data-block-index="${i}"]`) as HTMLElement | null;
+    if (el) blockEls.push(el);
+  }
+
+  if (blockEls.length === 0) {
+    return 0;
+  }
+
+  // Find the block currently spanning across refY
+  let activeIndex = 0;
+  for (let i = 0; i < blockEls.length; i += 1) {
+    const rect = blockEls[i].getBoundingClientRect();
+    if (rect.top <= refY + 4) {
+      activeIndex = i;
+    } else {
+      break;
+    }
+  }
+
+  const activeEl = blockEls[activeIndex];
+  const activeRect = activeEl.getBoundingClientRect();
+  const nextEl = blockEls[activeIndex + 1] as HTMLElement | undefined;
+  const nextTop = nextEl ? nextEl.getBoundingClientRect().top : (activeRect.bottom + 24);
+
+  const blockSpan = Math.max(1, nextTop - activeRect.top);
+  const progress = Math.max(0, Math.min(1, (refY - activeRect.top) / blockSpan));
+
+  const currentLineTop = measuredTextareaTops[activeIndex] ?? 0;
+  const nextLineTop = activeIndex + 1 < measuredTextareaTops.length
+    ? (measuredTextareaTops[activeIndex + 1] ?? currentLineTop)
+    : Math.max(currentLineTop, textarea.scrollHeight - textarea.clientHeight);
+
+  const targetLineTop = currentLineTop + progress * (nextLineTop - currentLineTop);
+
+  // Derive target scrollTop so that targetLineTop is placed exactly at refY on screen:
+  // lineScreenY = textareaContentTop + (targetLineTop - scrollTop) = refY
+  // => scrollTop = targetLineTop + textareaContentTop - refY
+  const targetTop = targetLineTop + textareaContentTop - refY;
+  return Math.max(0, Math.min(textarea.scrollHeight - textarea.clientHeight, targetTop));
+}
+
+/**
+ * Calculates the exact window scroll (or reader internal scroll) required so that
+ * the rendered block aligns horizontally on the screen with the textarea's current line.
+ */
+export function getSynchronizedScrollForTextarea(
+  textarea: HTMLTextAreaElement,
+  reader: HTMLElement,
+  measuredTextareaTops: number[],
+  rangesCount: number,
+): { targetWindowY: number; targetReaderTop: number } {
+  if (typeof window === "undefined" || rangesCount === 0 || measuredTextareaTops.length === 0) {
+    return { targetWindowY: 0, targetReaderTop: 0 };
+  }
+
+  const scrollTop = textarea.scrollTop;
+  const textareaRect = textarea.getBoundingClientRect();
+  const textareaPaddingTop = parseFloat(window.getComputedStyle(textarea).paddingTop) || 0;
+  const textareaContentTop = textareaRect.top + textareaPaddingTop;
+  const refY = Math.max(
+    textareaContentTop,
+    Math.min(80, textareaRect.bottom - 60),
+  );
+
+  // The line offset inside textarea currently visible at refY:
+  // lineScreenY = textareaContentTop + (lineTop - scrollTop) = refY
+  // => lineTop = scrollTop + refY - textareaContentTop
+  const currentLineTopAtRef = Math.max(0, scrollTop + refY - textareaContentTop);
+
+  // Binary search to find the active block interval in textarea
+  let low = 0;
+  let high = measuredTextareaTops.length - 1;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (measuredTextareaTops[mid] <= currentLineTopAtRef) {
+      if (mid === measuredTextareaTops.length - 1 || measuredTextareaTops[mid + 1] > currentLineTopAtRef) {
+        low = mid;
+        break;
+      }
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  const activeIndex = Math.min(low, rangesCount - 1);
+  const currentLineTop = measuredTextareaTops[activeIndex] ?? 0;
+  const maxScroll = Math.max(1, textarea.scrollHeight - textarea.clientHeight);
+  const nextLineTop = activeIndex + 1 < measuredTextareaTops.length
+    ? (measuredTextareaTops[activeIndex + 1] ?? currentLineTop)
+    : maxScroll;
+
+  const span = Math.max(1, nextLineTop - currentLineTop);
+  const progress = Math.max(0, Math.min(1, (currentLineTopAtRef - currentLineTop) / span));
+
+  const activeEl = reader.querySelector(`[data-block-index="${activeIndex}"]`) as HTMLElement | null;
+  const nextEl = reader.querySelector(`[data-block-index="${activeIndex + 1}"]`) as HTMLElement | null;
+
+  if (!activeEl) {
+    return { targetWindowY: window.scrollY, targetReaderTop: 0 };
+  }
+
+  const activeRect = activeEl.getBoundingClientRect();
+  const nextTop = nextEl ? nextEl.getBoundingClientRect().top : (activeRect.bottom + 24);
+  const blockHeight = Math.max(1, nextTop - activeRect.top);
+
+  // Screen Y of the corresponding point in reader block:
+  const pointScreenY = activeRect.top + progress * blockHeight;
+  // We want pointScreenY to be at refY on screen:
+  const delta = pointScreenY - refY;
+  const targetWindowY = Math.max(0, window.scrollY + delta);
+
+  const targetReaderTop = activeEl.offsetTop - reader.offsetTop + progress * blockHeight;
+
+  return { targetWindowY, targetReaderTop };
+}
+
