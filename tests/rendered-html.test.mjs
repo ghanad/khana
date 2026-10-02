@@ -38,15 +38,32 @@ test("server-renders the Khana RTL home page", async () => {
 });
 
 test("verifies layout and metadata integrity", async () => {
-  const [layout, page, packageJson] = await Promise.all([
+  const [layout, direction, packageJson] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/direction.ts", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
   assert.match(layout, /title:\s*"خوانا \| خواندن درست متن فارسی"/);
   assert.match(layout, /dir="rtl"/);
   assert.match(layout, /lang="fa"/);
-  assert.match(page, /bidiFactory/);
+  assert.match(direction, /bidiFactory/);
   assert.match(packageJson, /"bidi-js"/);
+});
+
+test("keeps the reader's pure logic out of the page component", async () => {
+  const [page, parseBlocks, normalize] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/parse-blocks.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/normalize.ts", import.meta.url), "utf8"),
+  ]);
+
+  // Parsing and normalization are unit-tested separately, so the page should
+  // only import them rather than reimplement them.
+  assert.doesNotMatch(page, /function parseBlocks/);
+  assert.doesNotMatch(page, /function getTextDirection/);
+  assert.match(page, /from "\.\/lib\/parse-blocks"/);
+  assert.match(page, /from "\.\/lib\/reader-store"/);
+  assert.match(parseBlocks, /export function parseBlocks/);
+  assert.match(normalize, /export function normalizePersian/);
 });
