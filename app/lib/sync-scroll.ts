@@ -3,6 +3,7 @@ import type { BlockLineRange } from "./parse-blocks";
 export interface ScrollAnchors {
   textareaAnchors: number[];
   readerAnchors: number[];
+  pageAnchors: number[];
 }
 
 /**
@@ -127,7 +128,7 @@ export function measureTextareaLineTops(
 }
 
 /**
- * Computes synchronized scroll anchor pairs between the textarea and reader containers.
+ * Computes synchronized scroll anchor pairs between the textarea, reader, and window.
  */
 export function computeScrollAnchors(
   textarea: HTMLTextAreaElement | null,
@@ -136,7 +137,7 @@ export function computeScrollAnchors(
   ranges: BlockLineRange[],
 ): ScrollAnchors {
   if (!textarea || !reader || ranges.length === 0) {
-    return { textareaAnchors: [0], readerAnchors: [0] };
+    return { textareaAnchors: [0], readerAnchors: [0], pageAnchors: [0] };
   }
 
   const lines = text.replace(/\r\n/g, "\n").split("\n");
@@ -145,12 +146,20 @@ export function computeScrollAnchors(
 
   const readerRect = reader.getBoundingClientRect();
   const currentReaderScroll = reader.scrollTop;
+  const textareaRect = textarea.getBoundingClientRect();
+  const textareaPaddingTop = typeof window !== "undefined"
+    ? parseFloat(window.getComputedStyle(textarea).paddingTop) || 0
+    : 0;
+  const textareaContentTop = textareaRect.top + textareaPaddingTop;
+  const currentWindowScroll = typeof window !== "undefined" ? window.scrollY : 0;
 
   const textareaAnchors: number[] = [0];
   const readerAnchors: number[] = [0];
+  const pageAnchors: number[] = [0];
 
   let prevTextarea = 0;
   let prevReader = 0;
+  let prevPage = 0;
 
   for (let i = 0; i < ranges.length; i += 1) {
     // 1. Textarea anchor for block i
@@ -161,23 +170,35 @@ export function computeScrollAnchors(
     // 2. Reader anchor for block i
     const blockEl = reader.querySelector(`[data-block-index="${i}"]`) as HTMLElement | null;
     let readerTop = prevReader;
+    let pageTop = prevPage;
+
     if (blockEl) {
       const blockRect = blockEl.getBoundingClientRect();
       const relativeTop = blockRect.top - readerRect.top + currentReaderScroll;
       readerTop = Math.max(prevReader, relativeTop);
+
+      const blockDocTop = blockRect.top + currentWindowScroll;
+      pageTop = Math.max(prevPage, Math.max(0, blockDocTop - textareaContentTop));
     }
+
     prevReader = readerTop;
+    prevPage = pageTop;
 
     textareaAnchors.push(textareaTop);
     readerAnchors.push(readerTop);
+    pageAnchors.push(pageTop);
   }
 
-  // Final anchor: maximum scroll of both containers
+  // Final anchors: maximum scroll of all containers
   const maxTextareaScroll = Math.max(0, textarea.scrollHeight - textarea.clientHeight);
   const maxReaderScroll = Math.max(0, reader.scrollHeight - reader.clientHeight);
+  const maxPageScroll = typeof document !== "undefined" && typeof window !== "undefined"
+    ? Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+    : 0;
 
   textareaAnchors.push(Math.max(prevTextarea, maxTextareaScroll));
   readerAnchors.push(Math.max(prevReader, maxReaderScroll));
+  pageAnchors.push(Math.max(prevPage, maxPageScroll));
 
-  return { textareaAnchors, readerAnchors };
+  return { textareaAnchors, readerAnchors, pageAnchors };
 }

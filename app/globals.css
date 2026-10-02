@@ -252,23 +252,6 @@ a:focus-visible {
   max-width: 860px;
 }
 
-@media (min-width: 901px) {
-  .workspace:not(.input-collapsed) {
-    height: calc(100dvh - 220px);
-    min-height: 580px;
-  }
-
-  .workspace:not(.input-collapsed) .panel {
-    min-height: 0;
-    height: 100%;
-  }
-
-  .workspace:not(.input-collapsed) textarea,
-  .workspace:not(.input-collapsed) .reader {
-    min-height: 0;
-  }
-}
-
 .panel {
   display: flex;
   min-width: 0;

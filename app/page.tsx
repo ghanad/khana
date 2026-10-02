@@ -78,7 +78,7 @@ export default function Home() {
   const readerRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
   const anchorsRef = useRef<ScrollAnchors | null>(null);
-  const scrollingSourceRef = useRef<"textarea" | "reader" | null>(null);
+  const scrollingSourceRef = useRef<"textarea" | "reader" | "window" | null>(null);
   const syncScrollTimerRef = useRef<number | null>(null);
 
   // Read the stored document and settings once the client takes over; the
@@ -198,7 +198,10 @@ export default function Home() {
     ) {
       return;
     }
-    if (scrollingSourceRef.current === "reader") {
+    if (
+      scrollingSourceRef.current === "reader" ||
+      scrollingSourceRef.current === "window"
+    ) {
       return;
     }
 
@@ -221,13 +224,24 @@ export default function Home() {
       anchorsRef.current = anchors;
     }
 
-    const targetTop = interpolateScroll(
-      textareaRef.current.scrollTop,
-      anchors.textareaAnchors,
-      anchors.readerAnchors,
-    );
+    const readerEl = readerRef.current;
+    const isReaderScrollable = readerEl.scrollHeight > readerEl.clientHeight + 2;
 
-    readerRef.current.scrollTop = targetTop;
+    if (isReaderScrollable) {
+      const targetTop = interpolateScroll(
+        textareaRef.current.scrollTop,
+        anchors.textareaAnchors,
+        anchors.readerAnchors,
+      );
+      readerEl.scrollTop = targetTop;
+    } else if (typeof window !== "undefined") {
+      const targetPageTop = interpolateScroll(
+        textareaRef.current.scrollTop,
+        anchors.textareaAnchors,
+        anchors.pageAnchors,
+      );
+      window.scrollTo({ top: targetPageTop, behavior: "instant" });
+    }
   }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
 
   const handleReaderScroll = useCallback(() => {
@@ -270,6 +284,58 @@ export default function Home() {
     );
 
     textareaRef.current.scrollTop = targetTop;
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+
+  useEffect(() => {
+    function handleWindowScroll() {
+      if (
+        !isSyncScroll ||
+        isInputCollapsed ||
+        isFocusMode ||
+        !textareaRef.current ||
+        !readerRef.current
+      ) {
+        return;
+      }
+      if (scrollingSourceRef.current === "textarea") {
+        return;
+      }
+      const isReaderScrollable =
+        readerRef.current.scrollHeight > readerRef.current.clientHeight + 2;
+      if (isReaderScrollable) {
+        return;
+      }
+
+      scrollingSourceRef.current = "window";
+      if (syncScrollTimerRef.current !== null) {
+        window.clearTimeout(syncScrollTimerRef.current);
+      }
+      syncScrollTimerRef.current = window.setTimeout(() => {
+        scrollingSourceRef.current = null;
+      }, 60);
+
+      let anchors = anchorsRef.current;
+      if (!anchors) {
+        anchors = computeScrollAnchors(
+          textareaRef.current,
+          readerRef.current,
+          text,
+          lineRanges,
+        );
+        anchorsRef.current = anchors;
+      }
+
+      const targetTextareaTop = interpolateScroll(
+        window.scrollY,
+        anchors.pageAnchors,
+        anchors.textareaAnchors,
+      );
+
+      textareaRef.current.scrollTop = targetTextareaTop;
+    }
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleWindowScroll);
   }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
 
   const characterCount = text.length.toLocaleString("fa-IR");
