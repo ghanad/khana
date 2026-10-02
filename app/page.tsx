@@ -156,22 +156,15 @@ export default function Home() {
   }
 
   function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const textarea = event.currentTarget;
-    const plan = planPaste(
-      event.clipboardData.getData("text"),
-      textarea.value,
-      textarea.selectionStart ?? 0,
-      textarea.selectionEnd ?? 0,
-    );
+    const plan = planPaste(event.clipboardData.getData("text"));
 
     if (plan.action === "ignore") return;
 
-    if (plan.action === "replace") {
-      // Stop the browser from splicing the new text onto the old one.
-      event.preventDefault();
-      setText(plan.text);
-    }
-
+    // Own the insertion. The panel collapses right after, which unmounts this
+    // textarea, and a native paste would only run once the handler has returned
+    // — by then the node is detached and the pasted text would be lost.
+    event.preventDefault();
+    setText(plan.text);
     setIsInputCollapsed(true);
   }
 
