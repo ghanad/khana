@@ -45,7 +45,7 @@ Clear writing makes complex ideas easier to understand. A well-structured interf
 
 1. Install the dependencies
 2. Run the test suite
-3. Open a pull request
+3. کنید merge را PR ۹
 4. متن فارسی در میان فهرست انگلیسی
 5. **Install** with **bold** and \`inline code\`
 

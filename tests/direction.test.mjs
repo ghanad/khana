@@ -46,6 +46,12 @@ test("ignores leading neutral characters when picking the direction", () => {
   assert.equal(getTextDirection("42 \"hello\""), "ltr");
 });
 
+test("keeps a Persian list item RTL when a short English tail wins on count", () => {
+  // 6 Persian letters against 7 Latin ones. Majority counting returned "ltr"
+  // here, which flipped the whole item and parked its marker on the left.
+  assert.equal(getTextDirection("کنید merge را PR ۹"), "rtl");
+});
+
 test("falls back to LTR when the text has no strong character", () => {
   assert.equal(getTextDirection("123 456"), "ltr");
   assert.equal(getTextDirection("🐕🧑‍💻"), "ltr");
