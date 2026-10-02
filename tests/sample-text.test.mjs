@@ -39,14 +39,13 @@ test("sample text includes a heading that starts with a number", () => {
   );
 });
 
-test("sample text includes an ordered list with more than one item", () => {
-  const ordered = parseBlocks(sampleText).filter(
-    (block) => block.type === "list" && block.ordered,
-  );
+test("sample text mixes English and Persian inside one ordered list", async () => {
+  const { getTextDirection } = await import("../app/lib/direction.ts");
+  const mixed = parseBlocks(sampleText)
+    .filter((block) => block.type === "list" && block.ordered)
+    .find((list) => list.items.some((item) => getTextDirection(item) === "ltr"));
 
-  assert.ok(ordered.length > 0, "expected an ordered list in the sample text");
-  assert.ok(
-    ordered.some((list) => list.items.length > 1),
-    "expected an ordered list with several items",
-  );
+  assert.ok(mixed, "expected an ordered list containing English items");
+  // English items stay LTR while a Persian item in the same list stays RTL.
+  assert.ok(mixed.items.some((item) => getTextDirection(item) === "rtl"));
 });

@@ -41,6 +41,14 @@ Clear writing makes complex ideas easier to understand. A well-structured interf
 2. مرحلهٔ دوم: پیاده‌سازی و نوشتن آزمون‌ها
 3. مرحلهٔ سوم: بازبینی و انتشار
 
+فهرست‌های مرتب زیر با واژه‌های انگلیسی آغاز می‌شوند و باید چپ‌به‌راست بمانند، در حالی که هر مورد فارسی راست‌به‌چپ است:
+
+1. Install the dependencies
+2. Run the test suite
+3. Open a pull request
+4. متن فارسی در میان فهرست انگلیسی
+5. **Install** with **bold** and \`inline code\`
+
 ## نقل‌قول
 
 > این یک نقل‌قول چندخطی است.
