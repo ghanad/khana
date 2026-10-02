@@ -4,23 +4,33 @@ Guidelines and operational standards for AI agents and automated contributors wo
 
 ---
 
-## 1. Branching & Git Workflow Rules
+## 1. Starting a Task & Multi-Agent Concurrency Safety
 
-> [!IMPORTANT]
-> **NEVER commit or push directly to `main`.**
-> The `main` branch is protected. All contributions must be submitted via a Pull Request.
+> [!CAUTION]
+> **Check the current branch and working directory state before starting!**
+> - **Detecting Concurrent LLMs/Tasks:** Run `git status` first. If the workspace is **NOT** on `main`, or if there are uncommitted changes on another branch, **another LLM agent or developer is likely actively working on that task!**
+> - **Do NOT** blindly switch branches, reset, or overwrite working directory files.
+> - If working in parallel or on a distinct task while another branch is busy, use an isolated Git worktree (`git worktree add ...`) so ongoing work remains completely unharmed.
 
-### Branch Strategy
-1. Always start from an up-to-date `main`:
+### Starting a New Task from `main`
+When initiating any new task:
+1. Ensure your starting base is on `main`:
    ```bash
    git checkout main
+   ```
+2. Pull the latest updates from GitHub before branching:
+   ```bash
    git pull origin main
    ```
-2. Create and switch to a descriptive task branch:
+3. Create and switch to a descriptive task branch:
    - Features: `feat/<short-title>` (e.g. `feat/add-search-bar`)
    - Bug fixes: `fix/<short-title>` (e.g. `fix/rtl-alignment-issue`)
    - Refactoring: `refactor/<short-title>` (e.g. `refactor/db-queries`)
    - Documentation & Tooling: `chore/<short-title>` or `docs/<short-title>`
+
+> [!IMPORTANT]
+> **NEVER commit or push directly to `main`.**
+> The `main` branch is protected. All changes must be submitted via a Pull Request.
 
 ---
 
