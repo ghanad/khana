@@ -594,10 +594,14 @@ button:disabled {
   line-height: var(--reader-leading, 2.18);
 }
 
+/* Tailwind's preflight resets heading font-weight and font-size to `inherit`,
+   so every level has to be restated here. Without an explicit weight the h3/h4
+   rendered at the same weight as body text and lost their heading role. */
 .rendered-text h2,
 .rendered-text h3,
 .rendered-text h4 {
   margin: 1.5em 0 0.6em;
+  font-weight: 700;
   line-height: 1.65;
 }
 
@@ -606,17 +610,28 @@ button:disabled {
 }
 
 .rendered-text h3 {
-  font-size: 1.24em;
+  font-size: 1.26em;
 }
 
 .rendered-text h4 {
-  font-size: 1.1em;
+  font-size: 1.12em;
 }
 
+/* Tailwind's preflight strips list markers (`list-style: none`), so bullets and
+   ordered numbers have to be restored explicitly or the lists render as bare
+   indented lines. */
 .rendered-text ul,
 .rendered-text ol {
   margin: 0 0 1.4em;
   padding-inline-start: 1.5em;
+}
+
+.rendered-text ul {
+  list-style-type: disc;
+}
+
+.rendered-text ol {
+  list-style-type: decimal;
 }
 
 .rendered-text li {
@@ -624,6 +639,15 @@ button:disabled {
   padding-inline-start: 0.3em;
   line-height: 2;
   text-align: start;
+}
+
+/* Nested lists keep a distinct marker so the levels stay tellable apart. */
+.rendered-text ul ul {
+  list-style-type: circle;
+}
+
+.rendered-text ul ul ul {
+  list-style-type: square;
 }
 
 .rendered-text li::marker {

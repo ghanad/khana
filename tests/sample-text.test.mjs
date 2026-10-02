@@ -26,3 +26,27 @@ test("sample code fence survives intact, nested template literal included", () =
   assert.match(code.content, /const message = `سلام، \$\{name\}!`;/);
   assert.match(code.content, /console\.log\(greet\("خوانا"\)\);/);
 });
+
+test("sample text includes a heading that starts with a number", () => {
+  const headings = parseBlocks(sampleText)
+    .filter((block) => block.type === "heading")
+    .map((block) => block.content);
+
+  // Digits carry no strong bidi type, so the letter after them must still win.
+  assert.ok(
+    headings.some((content) => /^[۰-۹0-9]/.test(content)),
+    "expected a heading beginning with a digit",
+  );
+});
+
+test("sample text includes an ordered list with more than one item", () => {
+  const ordered = parseBlocks(sampleText).filter(
+    (block) => block.type === "list" && block.ordered,
+  );
+
+  assert.ok(ordered.length > 0, "expected an ordered list in the sample text");
+  assert.ok(
+    ordered.some((list) => list.items.length > 1),
+    "expected an ordered list with several items",
+  );
+});
