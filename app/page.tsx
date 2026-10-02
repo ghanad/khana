@@ -12,6 +12,7 @@ import {
 import { InlineText } from "./components/inline-text";
 import { TypographyControls } from "./components/typography-controls";
 import { getTextDirection } from "./lib/direction";
+import { planPaste } from "./lib/paste";
 import { parseBlocks } from "./lib/parse-blocks";
 import { sampleText } from "./lib/sample-text";
 import { DEFAULT_SETTINGS, type ReaderSettings } from "./lib/settings";
@@ -155,12 +156,23 @@ export default function Home() {
   }
 
   function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const pasted = event.clipboardData.getData("text");
-    if (pasted && pasted.trim()) {
-      setTimeout(() => {
-        setIsInputCollapsed(true);
-      }, 80);
+    const textarea = event.currentTarget;
+    const plan = planPaste(
+      event.clipboardData.getData("text"),
+      textarea.value,
+      textarea.selectionStart ?? 0,
+      textarea.selectionEnd ?? 0,
+    );
+
+    if (plan.action === "ignore") return;
+
+    if (plan.action === "replace") {
+      // Stop the browser from splicing the new text onto the old one.
+      event.preventDefault();
+      setText(plan.text);
     }
+
+    setIsInputCollapsed(true);
   }
 
   function clearText() {
