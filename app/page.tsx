@@ -1,152 +1,40 @@
 "use client";
 
-import bidiFactory from "bidi-js";
-import { Fragment, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
-const bidi = bidiFactory();
+import { InlineText } from "./components/inline-text";
+import { TypographyControls } from "./components/typography-controls";
+import { getTextDirection } from "./lib/direction";
+import { planPaste } from "./lib/paste";
+import { parseBlocks } from "./lib/parse-blocks";
+import { sampleText } from "./lib/sample-text";
+import { DEFAULT_SETTINGS, type ReaderSettings } from "./lib/settings";
+import {
+  clearReaderDocument,
+  getReaderServerSnapshot,
+  getReaderSnapshot,
+  hydrateReaderStore,
+  subscribeToReader,
+  updateReaderDocument,
+  updateReaderSettings,
+} from "./lib/reader-store";
 
-const sampleText = `Design می‌تواند ساده، روشن و در عین حال کاربردی باشد؛ مهم این است که هر بخش در جای درست خود قرار بگیرد و خواندن محتوا بدون وقفه پیش برود.
+const DOCUMENT_SAVE_DELAY = 300;
+const FONT_SIZE_STEP = 2;
 
-خواندن یک متن روان نباید به تلاش اضافی نیاز داشته باشد. فاصلهٔ مناسب، انتخاب درست واژه‌ها و چینش منظم جمله‌ها کمک می‌کنند مفهوم نوشته سریع‌تر و دقیق‌تر منتقل شود.
-
-گاهی در یک متن فارسی از واژه‌هایی مانند Product Design، User Experience و Front-end Development استفاده می‌کنیم و انتظار داریم همهٔ آن‌ها در کنار جمله‌های فارسی، مرتب و خوانا نمایش داده شوند.
-
-Clear writing makes complex ideas easier to understand. A well-structured interface should help readers focus on the content without distracting them from the main message.
-
-\`\`\`javascript
-function greet(name) {
-  const message = \`سلام، \${name}!\`;
-  return message;
-}
-
-console.log(greet("خوانا"));
-\`\`\``;
-
-type Block =
-  | { type: "code"; content: string; language?: string }
-  | { type: "heading"; content: string; level: number }
-  | { type: "list"; items: string[]; ordered: boolean }
-  | { type: "quote"; content: string }
-  | { type: "paragraph"; content: string };
-
-function parseBlocks(input: string): Block[] {
-  const lines = input.replace(/\r\n/g, "\n").split("\n");
-  const blocks: Block[] = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index];
-
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-
-    if (line.startsWith("```")) {
-      const language = line.slice(3).trim();
-      const code: string[] = [];
-      index += 1;
-      while (index < lines.length && !lines[index].startsWith("```")) {
-        code.push(lines[index]);
-        index += 1;
-      }
-      blocks.push({ type: "code", content: code.join("\n"), language });
-      index += 1;
-      continue;
-    }
-
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      blocks.push({
-        type: "heading",
-        level: heading[1].length,
-        content: heading[2],
-      });
-      index += 1;
-      continue;
-    }
-
-    const unordered = line.match(/^\s*[-*]\s+(.+)$/);
-    const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
-    if (unordered || ordered) {
-      const isOrdered = Boolean(ordered);
-      const items: string[] = [];
-      while (index < lines.length) {
-        const match = isOrdered
-          ? lines[index].match(/^\s*\d+[.)]\s+(.+)$/)
-          : lines[index].match(/^\s*[-*]\s+(.+)$/);
-        if (!match) break;
-        items.push(match[1]);
-        index += 1;
-      }
-      blocks.push({ type: "list", items, ordered: isOrdered });
-      continue;
-    }
-
-    if (line.startsWith("> ")) {
-      const quote: string[] = [];
-      while (index < lines.length && lines[index].startsWith("> ")) {
-        quote.push(lines[index].slice(2));
-        index += 1;
-      }
-      blocks.push({ type: "quote", content: quote.join(" ") });
-      continue;
-    }
-
-    const paragraph = [line];
-    index += 1;
-    while (
-      index < lines.length &&
-      lines[index].trim() &&
-      !/^(#{1,3})\s+/.test(lines[index]) &&
-      !/^```/.test(lines[index]) &&
-      !/^\s*([-*]|\d+[.)])\s+/.test(lines[index]) &&
-      !/^>\s/.test(lines[index])
-    ) {
-      paragraph.push(lines[index]);
-      index += 1;
-    }
-    blocks.push({ type: "paragraph", content: paragraph.join("\n") });
-  }
-
-  return blocks;
-}
-
-function getTextDirection(text: string): "rtl" | "ltr" {
-  let rtlCount = 0;
-  let ltrCount = 0;
-
-  for (const character of text) {
-    const type = bidi.getBidiCharTypeName(character);
-    if (type === "R" || type === "AL") rtlCount += 1;
-    if (type === "L") ltrCount += 1;
-  }
-
-  if (rtlCount !== ltrCount) {
-    return rtlCount > ltrCount ? "rtl" : "ltr";
-  }
-
-  const paragraph = bidi.getEmbeddingLevels(text).paragraphs[0];
-  return paragraph && paragraph.level % 2 === 1 ? "rtl" : "ltr";
-}
-
-function InlineText({ children }: { children: string }) {
-  const parts = children.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/g);
-
-  return (
-    <>
-      {parts.map((part, index) => {
-        if (part.startsWith("`") && part.endsWith("`")) {
-          return <code key={index}>{part.slice(1, -1)}</code>;
-        }
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return <strong key={index}>{part.slice(2, -2)}</strong>;
-        }
-        return <Fragment key={index}>{part}</Fragment>;
-      })}
-    </>
-  );
-}
+const FONT_FAMILY_STACKS: Record<ReaderSettings["fontFamily"], string> = {
+  vazir: '"Vazirmatn", Tahoma, Arial, sans-serif',
+  serif: 'Georgia, "Times New Roman", "Vazirmatn", serif',
+  sans: 'Tahoma, Arial, "Vazirmatn", sans-serif',
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+};
 
 function EmptyState() {
   return (
@@ -161,14 +49,95 @@ function EmptyState() {
 }
 
 export default function Home() {
-  const [text, setText] = useState("");
-  const [fontSize, setFontSize] = useState(20);
-  const [darkMode, setDarkMode] = useState(false);
+  const { document: text, settings } = useSyncExternalStore(
+    subscribeToReader,
+    getReaderSnapshot,
+    getReaderServerSnapshot,
+  );
   const [copied, setCopied] = useState(false);
   const [isInputCollapsed, setIsInputCollapsed] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isTypographyOpen, setIsTypographyOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimerRef = useRef<number | null>(null);
+
+  // Read the stored document and settings once the client takes over; the
+  // server snapshot keeps the first render identical to the SSR output.
+  useEffect(() => {
+    hydrateReaderStore();
+  }, []);
+
+  // Debounced so typing a long text does not write to storage on every key.
+  useEffect(() => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = window.setTimeout(() => {
+      updateReaderDocument(text);
+    }, DOCUMENT_SAVE_DELAY);
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [text]);
+
+  const setSettings = updateReaderSettings;
+  const setText = updateReaderDocument;
+
+  const changeFontSize = useCallback(
+    (delta: number) => {
+      updateReaderSettings({
+        ...settings,
+        fontSize: settings.fontSize + delta,
+      });
+    },
+    [settings],
+  );
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isTyping =
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable === true;
+
+      if ((event.metaKey || event.ctrlKey) && (event.key === "+" || event.key === "=")) {
+        event.preventDefault();
+        changeFontSize(FONT_SIZE_STEP);
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key === "-") {
+        event.preventDefault();
+        changeFontSize(-FONT_SIZE_STEP);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (isFocusMode) {
+          setIsFocusMode(false);
+          return;
+        }
+        if (isTyping) return;
+      }
+
+      if (isTyping) return;
+
+      if (event.key === "f" || event.key === "ب") {
+        setIsFocusMode((current) => !current);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [changeFontSize, isFocusMode]);
+
   const blocks = useMemo(() => parseBlocks(text), [text]);
   const characterCount = text.length.toLocaleString("fa-IR");
+  const { fontSize, darkMode, fontFamily, lineHeight, measure, paragraphGap } = settings;
 
   async function pasteText() {
     try {
@@ -187,16 +156,27 @@ export default function Home() {
   }
 
   function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const pasted = event.clipboardData.getData("text");
-    if (pasted && pasted.trim()) {
-      setTimeout(() => {
-        setIsInputCollapsed(true);
-      }, 80);
+    const textarea = event.currentTarget;
+    const plan = planPaste(
+      event.clipboardData.getData("text"),
+      textarea.value,
+      textarea.selectionStart ?? 0,
+      textarea.selectionEnd ?? 0,
+    );
+
+    if (plan.action === "ignore") return;
+
+    if (plan.action === "replace") {
+      // Stop the browser from splicing the new text onto the old one.
+      event.preventDefault();
+      setText(plan.text);
     }
+
+    setIsInputCollapsed(true);
   }
 
   function clearText() {
-    setText("");
+    clearReaderDocument();
     setIsInputCollapsed(false);
   }
 
@@ -207,8 +187,24 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
+  const appClassName = [
+    "app",
+    darkMode ? "theme-dark" : "",
+    isFocusMode ? "focus-mode" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const readerStyle = {
+    "--reader-size": `${fontSize}px`,
+    "--reader-leading": `${lineHeight}`,
+    "--reader-measure": `${measure}px`,
+    "--reader-paragraph-gap": `${paragraphGap}em`,
+    "--reader-family": FONT_FAMILY_STACKS[fontFamily],
+  } as React.CSSProperties;
+
   return (
-    <main className={darkMode ? "app theme-dark" : "app"}>
+    <main className={appClassName}>
       <div className="page-shell">
         <header className="site-header">
           <a className="brand" href="#" aria-label="خوانا، صفحه اصلی">
@@ -224,12 +220,23 @@ export default function Home() {
           <div className="header-actions">
             <span className="privacy-note">
               <i aria-hidden="true" />
-              متن شما ذخیره نمی‌شود
+              متن شما فقط روی همین دستگاه می‌ماند
             </span>
+            <button
+              className="quiet-button"
+              type="button"
+              onClick={() => setIsFocusMode((current) => !current)}
+              aria-pressed={isFocusMode}
+              title="حالت مطالعه بدون حواس‌پرتی (کلید f)"
+            >
+              {isFocusMode ? "خروج از حالت مطالعه" : "حالت مطالعه"}
+            </button>
             <button
               className="icon-button"
               type="button"
-              onClick={() => setDarkMode((current) => !current)}
+              onClick={() =>
+                setSettings({ ...settings, darkMode: !settings.darkMode })
+              }
               aria-label={darkMode ? "فعال‌کردن حالت روشن" : "فعال‌کردن حالت تیره"}
               title={darkMode ? "حالت روشن" : "حالت تیره"}
             >
@@ -237,6 +244,19 @@ export default function Home() {
             </button>
           </div>
         </header>
+
+        {isFocusMode && (
+          <div className="focus-bar">
+            <span>حالت مطالعه فعال است. برای خروج Esc یا دکمهٔ زیر را بزنید.</span>
+            <button
+              className="quiet-button"
+              type="button"
+              onClick={() => setIsFocusMode(false)}
+            >
+              بازگشت به ویرایش
+            </button>
+          </div>
+        )}
 
         <section className="intro" aria-labelledby="page-title">
           <div className="intro-heading">
@@ -275,7 +295,7 @@ export default function Home() {
                   {text.trim() && (
                     <span className="collapsed-snippet" title={text}>
                       «{text.replace(/\s+/g, " ").trim().slice(0, 48)}
-                      {text.trim().length > 48 ? "…" : ""}»
+                      {text.trim().length > 48 ? "…" : ""}»»
                     </span>
                   )}
                 </div>
@@ -379,27 +399,45 @@ export default function Home() {
               <div className="reader-tools" aria-label="تنظیم اندازه متن">
                 <button
                   type="button"
-                  onClick={() => setFontSize((size) => Math.max(16, size - 2))}
+                  onClick={() => changeFontSize(-FONT_SIZE_STEP)}
                   aria-label="کوچک‌تر کردن متن"
-                  disabled={fontSize === 16}
+                  disabled={fontSize <= DEFAULT_SETTINGS.fontSize - 2}
                 >
                   −
                 </button>
                 <span>{fontSize.toLocaleString("fa-IR")}</span>
                 <button
                   type="button"
-                  onClick={() => setFontSize((size) => Math.min(28, size + 2))}
+                  onClick={() => changeFontSize(FONT_SIZE_STEP)}
                   aria-label="بزرگ‌تر کردن متن"
-                  disabled={fontSize === 28}
+                  disabled={fontSize >= 28}
                 >
                   +
+                </button>
+                <button
+                  className="typography-toggle"
+                  type="button"
+                  onClick={() => setIsTypographyOpen((current) => !current)}
+                  aria-expanded={isTypographyOpen}
+                  aria-controls="typography-panel"
+                >
+                  تنظیمات خواندن
                 </button>
               </div>
             </div>
 
+            {isTypographyOpen && (
+              <div className="typography-panel" id="typography-panel">
+                <TypographyControls
+                  settings={settings}
+                  onChange={setSettings}
+                />
+              </div>
+            )}
+
             <div
               className="reader"
-              style={{ "--reader-size": `${fontSize}px` } as React.CSSProperties}
+              style={readerStyle}
               aria-live="polite"
             >
               {!text.trim() ? (
@@ -478,8 +516,8 @@ export default function Home() {
 
         <footer className="site-footer">
           <p>
-            «خوانا» همه‌چیز را روی دستگاه شما انجام می‌دهد؛ چیزی به سرور فرستاده
-            نمی‌شود.
+            «خوانا» همه‌چیز را روی دستگاه شما انجام می‌دهد؛ متن شما فقط در همین
+            مرورگر ذخیره می‌شود و هیچ‌وقت به سرور فرستاده نمی‌شود.
           </p>
           <span>ساخته‌شده برای واژه‌هایی که شایستهٔ خوب خوانده‌شدن‌اند.</span>
         </footer>

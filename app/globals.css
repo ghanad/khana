@@ -529,8 +529,9 @@ button:disabled {
 }
 
 .rendered-text {
-  max-width: 740px;
+  max-width: var(--reader-measure, 740px);
   margin: 0 auto;
+  font-family: var(--reader-family, "Vazirmatn", Tahoma, Arial, sans-serif);
 }
 
 .rendered-text p,
@@ -544,9 +545,9 @@ button:disabled {
 }
 
 .rendered-text p {
-  margin: 0 0 1.25em;
+  margin: 0 0 var(--reader-paragraph-gap, 1.25em);
   white-space: pre-wrap;
-  line-height: 2.18;
+  line-height: var(--reader-leading, 2.18);
 }
 
 .rendered-text h2,
@@ -691,6 +692,112 @@ button:disabled {
   text-align: left;
 }
 
+/* Focus mode strips the interface down to the reader. */
+.focus-mode .site-header,
+.focus-mode .intro,
+.focus-mode .input-panel,
+.focus-mode .site-footer {
+  display: none;
+}
+
+.focus-mode .workspace,
+.focus-mode .workspace.input-collapsed {
+  display: block;
+  grid-template-columns: 1fr;
+}
+
+.focus-mode .preview-panel {
+  border: 0;
+  min-height: calc(100vh - 48px);
+}
+
+.focus-mode .reader {
+  min-height: calc(100vh - 150px);
+}
+
+.focus-mode .typography-panel {
+  display: block;
+}
+
+.focus-bar {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 20px;
+  margin: 18px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.typography-toggle {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-solid);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.typography-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.typography-panel {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--soft-line);
+  background: var(--accent-soft);
+}
+
+.typography-controls {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.typography-control {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+}
+
+.typography-control label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.typography-control output {
+  color: var(--accent);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 76px;
+  text-align: left;
+}
+
+.typography-control input[type="range"] {
+  width: 100%;
+  grid-column: 1 / -1;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.typography-control select {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-solid);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
 @media (max-width: 900px) {
   .page-shell {
     width: min(100% - 28px, 720px);
@@ -804,6 +911,25 @@ button:disabled {
   .collapsed-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .focus-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 14px;
+  }
+
+  .typography-panel {
+    padding: 14px 18px;
+  }
+
+  .typography-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .typography-toggle {
+    padding: 6px 9px;
+    font-size: 11px;
   }
 }
 
