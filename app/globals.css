@@ -493,9 +493,12 @@ button:disabled {
   background: var(--surface-solid);
 }
 
-.reader-tools button {
+/* Only the stepper buttons are fixed-size squares; the typography toggle is a
+   child of this row too and needs its label width (see .typography-toggle). */
+.reader-tools > button:not(.typography-toggle) {
   width: 33px;
   height: 100%;
+  flex: 0 0 auto;
   cursor: pointer;
   border: 0;
   background: transparent;
@@ -511,6 +514,7 @@ button:disabled {
   display: grid;
   min-width: 34px;
   height: 20px;
+  flex: 0 0 auto;
   place-items: center;
   border-right: 1px solid var(--line);
   border-left: 1px solid var(--line);
@@ -775,18 +779,25 @@ button:disabled {
 }
 
 .typography-toggle {
-  padding: 7px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-solid);
+  /* Sits inside .reader-tools, so it opts out of the 33px square stepper sizing
+     and is separated from the stepper by a divider instead of a nested border. */
+  height: 100%;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: border-color 160ms ease, color 160ms ease;
+  transition: color 160ms ease, background 160ms ease;
 }
 
-.typography-toggle:hover {
-  border-color: var(--accent);
+/* Scoped under .reader-tools so it wins over the generic stepper hover rule. */
+.reader-tools .typography-toggle:hover {
   color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .typography-panel {
@@ -855,6 +866,13 @@ button:disabled {
 
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  /* Once the panels stack, the preview header has room to breathe: let the
+     tools row wrap instead of being squeezed against the title. */
+  .preview-panel .panel-header {
+    flex-wrap: wrap;
+    padding-block: 12px;
   }
 
   .preview-panel {
@@ -968,7 +986,7 @@ button:disabled {
   }
 
   .typography-toggle {
-    padding: 6px 9px;
+    padding: 0 9px;
     font-size: 11px;
   }
 }
