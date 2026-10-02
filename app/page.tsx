@@ -13,7 +13,7 @@ import { InlineText } from "./components/inline-text";
 import { TypographyControls } from "./components/typography-controls";
 import { getTextDirection } from "./lib/direction";
 import { planPaste } from "./lib/paste";
-import { parseBlocks } from "./lib/parse-blocks";
+import { parseBlocks, type CellAlignment } from "./lib/parse-blocks";
 import { sampleText } from "./lib/sample-text";
 import { DEFAULT_SETTINGS, type ReaderSettings } from "./lib/settings";
 import {
@@ -35,6 +35,12 @@ const FONT_FAMILY_STACKS: Record<ReaderSettings["fontFamily"], string> = {
   sans: 'Tahoma, Arial, "Vazirmatn", sans-serif',
   mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
 };
+
+// Cells without an explicit delimiter alignment fall back to the surrounding
+// text direction, so `undefined` keeps the stylesheet's `text-align: start`.
+function alignmentStyle(alignment: CellAlignment) {
+  return alignment ? { textAlign: alignment } : undefined;
+}
 
 function EmptyState() {
   return (
@@ -480,6 +486,46 @@ export default function Home() {
                         >
                           <InlineText>{block.content}</InlineText>
                         </blockquote>
+                      );
+                    }
+
+                    if (block.type === "table") {
+                      return (
+                        <div className="table-scroll" key={index}>
+                          <table
+                            className="data-table"
+                            dir={getTextDirection(block.header.join(""))}
+                          >
+                            <thead>
+                              <tr>
+                                {block.header.map((cell, cellIndex) => (
+                                  <th
+                                    key={cellIndex}
+                                    scope="col"
+                                    style={alignmentStyle(block.align[cellIndex])}
+                                  >
+                                    <InlineText>{cell}</InlineText>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {block.rows.map((row, rowIndex) => (
+                                <tr key={rowIndex}>
+                                  {row.map((cell, cellIndex) => (
+                                    <td
+                                      key={cellIndex}
+                                      dir={getTextDirection(cell)}
+                                      style={alignmentStyle(block.align[cellIndex])}
+                                    >
+                                      <InlineText>{cell}</InlineText>
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       );
                     }
 

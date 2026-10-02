@@ -26,3 +26,26 @@ test("sample code fence survives intact, nested template literal included", () =
   assert.match(code.content, /const message = `سلام، \$\{name\}!`;/);
   assert.match(code.content, /console\.log\(greet\("خوانا"\)\);/);
 });
+
+test("sample text includes a heading that starts with a number", () => {
+  const headings = parseBlocks(sampleText)
+    .filter((block) => block.type === "heading")
+    .map((block) => block.content);
+
+  // Digits carry no strong bidi type, so the letter after them must still win.
+  assert.ok(
+    headings.some((content) => /^[۰-۹0-9]/.test(content)),
+    "expected a heading beginning with a digit",
+  );
+});
+
+test("sample text mixes English and Persian inside one ordered list", async () => {
+  const { getTextDirection } = await import("../app/lib/direction.ts");
+  const mixed = parseBlocks(sampleText)
+    .filter((block) => block.type === "list" && block.ordered)
+    .find((list) => list.items.some((item) => getTextDirection(item) === "ltr"));
+
+  assert.ok(mixed, "expected an ordered list containing English items");
+  // English items stay LTR while a Persian item in the same list stays RTL.
+  assert.ok(mixed.items.some((item) => getTextDirection(item) === "rtl"));
+});

@@ -493,9 +493,12 @@ button:disabled {
   background: var(--surface-solid);
 }
 
-.reader-tools button {
+/* Only the stepper buttons are fixed-size squares; the typography toggle is a
+   child of this row too and needs its label width (see .typography-toggle). */
+.reader-tools > button:not(.typography-toggle) {
   width: 33px;
   height: 100%;
+  flex: 0 0 auto;
   cursor: pointer;
   border: 0;
   background: transparent;
@@ -511,6 +514,7 @@ button:disabled {
   display: grid;
   min-width: 34px;
   height: 20px;
+  flex: 0 0 auto;
   place-items: center;
   border-right: 1px solid var(--line);
   border-left: 1px solid var(--line);
@@ -544,16 +548,60 @@ button:disabled {
   unicode-bidi: isolate;
 }
 
+/* Wide tables scroll inside the reader instead of stretching the measure. */
+.table-scroll {
+  margin: 1.4em 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+
+.rendered-text table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94em;
+  line-height: 1.9;
+}
+
+.rendered-text th,
+.rendered-text td {
+  padding: 0.55em 0.9em;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  unicode-bidi: isolate;
+  vertical-align: top;
+}
+
+.rendered-text th {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rendered-text tbody tr:last-child td {
+  border-block-end: none;
+}
+
+.rendered-text tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--accent-soft) 40%, transparent);
+}
+
 .rendered-text p {
   margin: 0 0 var(--reader-paragraph-gap, 1.25em);
   white-space: pre-wrap;
   line-height: var(--reader-leading, 2.18);
 }
 
+/* Tailwind's preflight resets heading font-weight and font-size to `inherit`,
+   so every level has to be restated here. Without an explicit weight the h3/h4
+   rendered at the same weight as body text and lost their heading role. */
 .rendered-text h2,
 .rendered-text h3,
 .rendered-text h4 {
   margin: 1.5em 0 0.6em;
+  font-weight: 700;
   line-height: 1.65;
 }
 
@@ -562,17 +610,28 @@ button:disabled {
 }
 
 .rendered-text h3 {
-  font-size: 1.24em;
+  font-size: 1.26em;
 }
 
 .rendered-text h4 {
-  font-size: 1.1em;
+  font-size: 1.12em;
 }
 
+/* Tailwind's preflight strips list markers (`list-style: none`), so bullets and
+   ordered numbers have to be restored explicitly or the lists render as bare
+   indented lines. */
 .rendered-text ul,
 .rendered-text ol {
   margin: 0 0 1.4em;
   padding-inline-start: 1.5em;
+}
+
+.rendered-text ul {
+  list-style-type: disc;
+}
+
+.rendered-text ol {
+  list-style-type: decimal;
 }
 
 .rendered-text li {
@@ -580,6 +639,15 @@ button:disabled {
   padding-inline-start: 0.3em;
   line-height: 2;
   text-align: start;
+}
+
+/* Nested lists keep a distinct marker so the levels stay tellable apart. */
+.rendered-text ul ul {
+  list-style-type: circle;
+}
+
+.rendered-text ul ul ul {
+  list-style-type: square;
 }
 
 .rendered-text li::marker {
@@ -735,18 +803,25 @@ button:disabled {
 }
 
 .typography-toggle {
-  padding: 7px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-solid);
+  /* Sits inside .reader-tools, so it opts out of the 33px square stepper sizing
+     and is separated from the stepper by a divider instead of a nested border. */
+  height: 100%;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: border-color 160ms ease, color 160ms ease;
+  transition: color 160ms ease, background 160ms ease;
 }
 
-.typography-toggle:hover {
-  border-color: var(--accent);
+/* Scoped under .reader-tools so it wins over the generic stepper hover rule. */
+.reader-tools .typography-toggle:hover {
   color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .typography-panel {
@@ -815,6 +890,13 @@ button:disabled {
 
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  /* Once the panels stack, the preview header has room to breathe: let the
+     tools row wrap instead of being squeezed against the title. */
+  .preview-panel .panel-header {
+    flex-wrap: wrap;
+    padding-block: 12px;
   }
 
   .preview-panel {
@@ -928,7 +1010,7 @@ button:disabled {
   }
 
   .typography-toggle {
-    padding: 6px 9px;
+    padding: 0 9px;
     font-size: 11px;
   }
 }
