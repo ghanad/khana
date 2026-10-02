@@ -165,6 +165,7 @@ export default function Home() {
   const [fontSize, setFontSize] = useState(20);
   const [darkMode, setDarkMode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isInputCollapsed, setIsInputCollapsed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const blocks = useMemo(() => parseBlocks(text), [text]);
   const characterCount = text.length.toLocaleString("fa-IR");
@@ -172,11 +173,31 @@ export default function Home() {
   async function pasteText() {
     try {
       const clipboardText = await navigator.clipboard.readText();
-      setText(clipboardText);
-      textareaRef.current?.focus();
+      if (clipboardText) {
+        setText(clipboardText);
+        if (clipboardText.trim()) {
+          setIsInputCollapsed(true);
+        }
+      } else {
+        textareaRef.current?.focus();
+      }
     } catch {
       textareaRef.current?.focus();
     }
+  }
+
+  function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = event.clipboardData.getData("text");
+    if (pasted && pasted.trim()) {
+      setTimeout(() => {
+        setIsInputCollapsed(true);
+      }, 80);
+    }
+  }
+
+  function clearText() {
+    setText("");
+    setIsInputCollapsed(false);
   }
 
   async function copyText() {
@@ -228,48 +249,125 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="workspace" aria-label="ویرایشگر و پیش‌نمایش متن">
-          <article className="panel input-panel">
-            <div className="panel-header">
-              <div>
-                <span className="step">۱</span>
-                <h2>متن را وارد کنید</h2>
-              </div>
-              <span className="counter">{characterCount} نویسه</span>
-            </div>
+        <section
+          className={
+            isInputCollapsed
+              ? "workspace input-collapsed"
+              : "workspace"
+          }
+          aria-label="ویرایشگر و پیش‌نمایش متن"
+        >
+          <article
+            className={
+              isInputCollapsed
+                ? "panel input-panel is-collapsed"
+                : "panel input-panel"
+            }
+          >
+            {isInputCollapsed ? (
+              <div className="collapsed-bar">
+                <div className="collapsed-info">
+                  <span className="step">۱</span>
+                  <div className="collapsed-titles">
+                    <span className="collapsed-title">متن اصلی</span>
+                    <span className="counter">{characterCount} نویسه</span>
+                  </div>
+                  {text.trim() && (
+                    <span className="collapsed-snippet" title={text}>
+                      «{text.replace(/\s+/g, " ").trim().slice(0, 48)}
+                      {text.trim().length > 48 ? "…" : ""}»
+                    </span>
+                  )}
+                </div>
 
-            <textarea
-              ref={textareaRef}
-              dir="auto"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder="متن خود را اینجا بنویسید یا بچسبانید…"
-              aria-label="متن ورودی"
-              spellCheck="false"
-            />
-
-            <div className="panel-footer input-footer">
-              <button className="text-button" type="button" onClick={pasteText}>
-                چسباندن از کلیپ‌بورد
-              </button>
-              <div className="input-secondary-actions">
-                <button
-                  className="quiet-button"
-                  type="button"
-                  onClick={() => setText(sampleText)}
-                >
-                  متن نمونه
-                </button>
-                <button
-                  className="quiet-button danger"
-                  type="button"
-                  onClick={() => setText("")}
-                  disabled={!text}
-                >
-                  پاک‌کردن
-                </button>
+                <div className="collapsed-actions">
+                  <button
+                    className="text-button collapse-toggle-button"
+                    type="button"
+                    onClick={() => {
+                      setIsInputCollapsed(false);
+                      setTimeout(() => textareaRef.current?.focus(), 60);
+                    }}
+                    aria-label="ویرایش متن اصلی"
+                  >
+                    <span aria-hidden="true">✎</span>
+                    ویرایش متن
+                  </button>
+                  <button
+                    className="quiet-button"
+                    type="button"
+                    onClick={pasteText}
+                    title="چسباندن متن جدید از کلیپ‌بورد"
+                  >
+                    چسباندن مجدد
+                  </button>
+                  <button
+                    className="quiet-button danger"
+                    type="button"
+                    onClick={clearText}
+                    title="پاک‌کردن متن"
+                  >
+                    پاک‌کردن
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="panel-header">
+                  <div>
+                    <span className="step">۱</span>
+                    <h2>متن را وارد کنید</h2>
+                  </div>
+                  <div className="input-header-tools">
+                    <span className="counter">{characterCount} نویسه</span>
+                    {text.trim() && (
+                      <button
+                        className="collapse-action-button"
+                        type="button"
+                        onClick={() => setIsInputCollapsed(true)}
+                        title="جمع‌کردن کادر ورودی برای فضای بیشتر مطالعه"
+                      >
+                        جمع‌کردن کادر ↑
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  ref={textareaRef}
+                  dir="auto"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  onPaste={handlePaste}
+                  placeholder="متن خود را اینجا بنویسید یا بچسبانید…"
+                  aria-label="متن ورودی"
+                  spellCheck="false"
+                />
+
+                <div className="panel-footer input-footer">
+                  <button className="text-button" type="button" onClick={pasteText}>
+                    چسباندن از کلیپ‌بورد
+                  </button>
+                  <div className="input-secondary-actions">
+                    <button
+                      className="quiet-button"
+                      type="button"
+                      onClick={() => setText(sampleText)}
+                    >
+                      متن نمونه
+                    </button>
+                    <button
+                      className="quiet-button danger"
+                      type="button"
+                      onClick={clearText}
+                      disabled={!text}
+                    >
+                      پاک‌کردن
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </article>
 
           <article className="panel preview-panel">
