@@ -544,6 +544,46 @@ button:disabled {
   unicode-bidi: isolate;
 }
 
+/* Wide tables scroll inside the reader instead of stretching the measure. */
+.table-scroll {
+  margin: 1.4em 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+
+.rendered-text table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94em;
+  line-height: 1.9;
+}
+
+.rendered-text th,
+.rendered-text td {
+  padding: 0.55em 0.9em;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  unicode-bidi: isolate;
+  vertical-align: top;
+}
+
+.rendered-text th {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rendered-text tbody tr:last-child td {
+  border-block-end: none;
+}
+
+.rendered-text tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--accent-soft) 40%, transparent);
+}
+
 .rendered-text p {
   margin: 0 0 var(--reader-paragraph-gap, 1.25em);
   white-space: pre-wrap;

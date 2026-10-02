@@ -6,6 +6,11 @@ export const sampleText = `Design می‌تواند ساده، روشن و در 
 
 Clear writing makes complex ideas easier to understand. A well-structured interface should help readers focus on the content without distracting them from the main message.
 
+| Job | نتیجه | زمان |
+|---|---|---|
+| \`Lint, Typecheck & Test\` | ✅ pass | 42s |
+| \`Docker Build Check\` | ✅ pass | 2m7s |
+
 \`\`\`javascript
 function greet(name) {
   const message = \`سلام، \${name}!\`;

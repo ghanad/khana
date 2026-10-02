@@ -1,9 +1,60 @@
+export type CellAlignment = "left" | "center" | "right" | null;
+
 export type Block =
   | { type: "code"; content: string; language?: string }
   | { type: "heading"; content: string; level: number }
   | { type: "list"; items: string[]; ordered: boolean }
   | { type: "quote"; content: string }
+  | {
+      type: "table";
+      header: string[];
+      rows: string[][];
+      align: CellAlignment[];
+    }
   | { type: "paragraph"; content: string };
+
+// A GFM table row is any line carrying at least one interior pipe. Rows may or
+// may not use the optional leading/trailing pipe, so both forms are accepted.
+const TABLE_ROW_PATTERN = /\|.*\|/;
+// The delimiter row under the header: every cell is a run of dashes that may
+// be wrapped in a single colon to request center or end alignment.
+const TABLE_DELIMITER_CELL_PATTERN = /^:?-+:?$/;
+
+// Splits one table line into trimmed cells, dropping the optional outer pipes
+// so that `| a | b |` and `a | b` both yield ["a", "b"].
+function splitTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function isTableRow(line: string | undefined): boolean {
+  return line !== undefined && TABLE_ROW_PATTERN.test(line);
+}
+
+function isTableDelimiterRow(line: string | undefined): boolean {
+  if (!isTableRow(line)) return false;
+  const cells = splitTableRow(line as string);
+  return cells.length > 0 && cells.every((cell) => TABLE_DELIMITER_CELL_PATTERN.test(cell));
+}
+
+function toAlignment(cell: string): CellAlignment {
+  const starts = cell.startsWith(":");
+  const ends = cell.endsWith(":");
+  if (starts && ends) return "center";
+  if (ends) return "right";
+  if (starts) return "left";
+  return null;
+}
+
+// Pads short rows and drops overflow cells so every row matches the header
+// width and the rendered table stays rectangular.
+function fitRow(cells: string[], width: number): string[] {
+  return Array.from({ length: width }, (_, index) => cells[index] ?? "");
+}
 
 export function parseBlocks(input: string): Block[] {
   const lines = input.replace(/\r\n/g, "\n").split("\n");
@@ -69,6 +120,21 @@ export function parseBlocks(input: string): Block[] {
       continue;
     }
 
+    // A table only starts when a header row is immediately followed by a
+    // delimiter row; without that pairing the pipes stay plain paragraph text.
+    if (isTableRow(line) && isTableDelimiterRow(lines[index + 1])) {
+      const header = splitTableRow(line);
+      const align = splitTableRow(lines[index + 1]).map(toAlignment);
+      index += 2;
+      const rows: string[][] = [];
+      while (index < lines.length && isTableRow(lines[index])) {
+        rows.push(fitRow(splitTableRow(lines[index]), header.length));
+        index += 1;
+      }
+      blocks.push({ type: "table", header, rows, align });
+      continue;
+    }
+
     const paragraph = [line];
     index += 1;
     while (
@@ -77,7 +143,9 @@ export function parseBlocks(input: string): Block[] {
       !/^(#{1,3})\s+/.test(lines[index]) &&
       !/^```/.test(lines[index]) &&
       !/^\s*([-*]|\d+[.)])\s+/.test(lines[index]) &&
-      !/^>\s/.test(lines[index])
+      !/^>\s/.test(lines[index]) &&
+      // A table opening on the next line must not be swallowed as a soft break.
+      !(isTableRow(lines[index]) && isTableDelimiterRow(lines[index + 1]))
     ) {
       paragraph.push(lines[index]);
       index += 1;
