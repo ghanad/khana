@@ -30,7 +30,9 @@ When initiating any new task:
 
 > [!IMPORTANT]
 > **NEVER commit or push directly to `main`.**
-> The `main` branch is protected. All changes must be submitted via a Pull Request.
+> The `main` branch is protected. Never commit or push directly to `main`;
+> all work lands on a task branch and eventually reaches `main` through a Pull
+> Request that the user asks for.
 
 ---
 
@@ -50,7 +52,9 @@ Keep commit messages concise, imperative, and focused on the "why" and "what".
 
 ## 3. Mandatory Pre-Flight Verification
 
-Before pushing a branch or requesting a Pull Request, agents **MUST** run all verification checks locally and ensure they exit with code 0:
+Agents **MUST** run all verification checks before committing a change, and again
+in full before pushing a branch or opening a Pull Request. All checks must exit
+with code 0:
 
 ```bash
 # 1. Check code style and rules
@@ -63,30 +67,72 @@ npm run typecheck
 npm test
 ```
 
-If any check fails, fix the underlying issue before pushing. Do not push failing code.
+If any check fails, fix the underlying issue before committing. Do not commit or
+push failing code. Documentation-only changes still need `npm run lint` to pass.
 
 ---
 
-## 4. Pull Request Creation
+## 4. Branch Lifecycle & Pull Request Creation
 
-Once changes are committed and pushed to the remote branch:
+> [!IMPORTANT]
+> **A task is not finished when the first commit lands.** A task may span many
+> commits across one or more sessions. Keep the branch open and keep adding
+> commits to it until the user explicitly asks for a PR.
 
-1. Push your branch to origin:
+### Commit freely, open a PR only when asked
+
+- Commit as soon as a coherent unit of work passes verification. Do **not** hold
+  finished work back waiting to batch it into a single commit.
+- Do **not** open a Pull Request on your own initiative, and do **not** treat a
+  task as complete merely because its code is committed.
+- Push intermediate commits to the branch when useful for backup or CI, but
+  treat a push as a checkpoint, not as a submission.
+- The task ends when the user says so. Expect follow-up requests such as
+  adjustments, additional features, or fixes to earlier commits on the same
+  branch.
+
+### When the user asks for a PR
+
+1. Run the full verification suite in section 3 and confirm it passes:
+   ```bash
+   npm run lint && npm run typecheck && npm test
+   ```
+2. Rebase or merge the latest `main` so the branch is not behind:
+   ```bash
+   git fetch origin
+   git rebase origin/main   # resolve conflicts, then re-run verification
+   ```
+3. Push the branch:
    ```bash
    git push -u origin <branch-name>
    ```
-2. Create a Pull Request against `main` using the GitHub CLI (`gh`):
+4. Create the Pull Request against `main`:
    ```bash
    gh pr create --base main --fill
    ```
-   Or provide explicit title and description matching the `.github/pull_request_template.md`:
+   Or with explicit title and description matching `.github/pull_request_template.md`:
    ```bash
    gh pr create --base main --title "feat: <title>" --body "### Summary\n<brief explanation>\n\n### Verification\n<test results>"
    ```
-3. Verify that CI workflows trigger and pass on your PR:
+5. Verify CI triggered and passed on the PR:
    ```bash
    gh pr checks
    ```
+
+### Verifying earlier commits before a PR
+
+Changes accumulate on the branch, so a defect may have been introduced several
+commits back. Before opening a PR, review the branch as a whole rather than only
+the most recent commit:
+
+```bash
+git log --oneline origin/main..HEAD          # everything this task contributes
+git diff origin/main...HEAD                   # the complete net change
+```
+
+If a problem traces back to an earlier commit, prefer a follow-up commit that
+fixes it. Rewrite history with `git rebase -i` only when the user asks for a
+clean history and the branch has not been shared.
 
 ---
 
