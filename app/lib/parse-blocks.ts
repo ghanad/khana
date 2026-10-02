@@ -22,13 +22,43 @@ const TABLE_DELIMITER_CELL_PATTERN = /^:?-+:?$/;
 
 // Splits one table line into trimmed cells, dropping the optional outer pipes
 // so that `| a | b |` and `a | b` both yield ["a", "b"].
+//
+// A pipe only separates cells when it is neither backslash-escaped (`\|`) nor
+// inside an inline code span (`a | b`), so the line is scanned once rather than
+// split naively. Escapes are unescaped in the returned cells.
 function splitTableRow(line: string): string[] {
-  return line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
+  const cells: string[] = [];
+  let current = "";
+  let inCode = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+
+    if (character === "\\" && line[index + 1] === "|") {
+      current += "|";
+      index += 1;
+      continue;
+    }
+
+    if (character === "`") inCode = !inCode;
+
+    if (character === "|" && !inCode) {
+      cells.push(current);
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  cells.push(current);
+
+  // Drop the empty edge cells produced by the optional outer pipes, but keep
+  // genuine empty cells such as `| a |  | b |`.
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+
+  return cells.map((cell) => cell.trim());
 }
 
 function isTableRow(line: string | undefined): boolean {

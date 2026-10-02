@@ -114,3 +114,30 @@ test("keeps table syntax verbatim inside code blocks", () => {
   assert.equal(blocks[0].type, "code");
   assert.equal(blocks[0].content, "| a | b |\n|---|---|");
 });
+
+test("does not split a cell on an escaped or code-wrapped pipe", () => {
+  const blocks = parseBlocks("| فرمان | نتیجه |\n|---|---|\n| `a \\| b` | ok |");
+  assert.equal(blocks[0].type, "table");
+  assert.deepEqual(blocks[0].rows, [["`a | b`", "ok"]]);
+});
+
+test("keeps genuine empty cells between the outer pipes", () => {
+  const blocks = parseBlocks("| a | b | c |\n|---|---|---|\n|  | 2 |  |");
+  assert.deepEqual(blocks[0].rows, [["", "2", ""]]);
+});
+
+test("the sample text exercises every supported block type", async () => {
+  const { sampleText } = await import("../app/lib/sample-text.ts");
+  const types = new Set(parseBlocks(sampleText).map((block) => block.type));
+  for (const type of ["heading", "paragraph", "list", "quote", "table", "code"]) {
+    assert.ok(types.has(type), `sample text no longer covers ${type} blocks`);
+  }
+});
+
+test("the sample text keeps its pipes-without-delimiter row as plain text", async () => {
+  const { sampleText } = await import("../app/lib/sample-text.ts");
+  const plain = parseBlocks(sampleText).find(
+    (block) => block.type === "paragraph" && block.content.includes("| متن ساده با خط لوله است |"),
+  );
+  assert.ok(plain, "expected the non-table pipe row to stay a paragraph");
+});
