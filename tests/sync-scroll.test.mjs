@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { getBlockLineRanges, parseBlocks } from "../app/lib/parse-blocks.ts";
 import {
+  computeScrollAnchors,
   getSynchronizedScrollForTextarea,
   getSynchronizedTextareaScroll,
   interpolateScroll,
@@ -218,5 +219,146 @@ test("getSynchronizedScrollForTextarea calculates accurate targetWindowY with mo
     assert.equal(Math.round(targetWindowY), 100);
   } finally {
     globalThis.window = originalWindow;
+  }
+});
+
+test("computeScrollAnchors handles null elements gracefully", () => {
+  const result = computeScrollAnchors(null, null, "text", []);
+  assert.deepEqual(result, {
+    textareaAnchors: [0],
+    readerAnchors: [0],
+    pageAnchors: [0],
+  });
+});
+
+test("computeScrollAnchors produces equal-length, monotonic anchor arrays", () => {
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+  try {
+    globalThis.window = {
+      innerHeight: 800,
+      scrollY: 0,
+      getComputedStyle: () => ({
+        padding: "30px",
+        paddingTop: "30px",
+        fontFamily: "monospace",
+        fontSize: "16px",
+        fontWeight: "400",
+        fontStyle: "normal",
+        lineHeight: "24px",
+        letterSpacing: "normal",
+        direction: "rtl",
+      }),
+    };
+
+    globalThis.document = {
+      createElement: () => ({
+        style: {},
+        querySelector: (sel) => {
+          const match = sel.match(/khana-line-(\d+)/);
+          const line = match ? Number(match[1]) : 0;
+          return { offsetTop: 30 + line * 40 };
+        },
+      }),
+      body: {
+        appendChild: () => {},
+        removeChild: () => {},
+      },
+      documentElement: {
+        scrollHeight: 3000,
+      },
+    };
+
+    const mockTextarea = {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      clientWidth: 400,
+    };
+
+    const mockBlocks = [
+      { getBoundingClientRect: () => ({ top: 120, bottom: 200 }) },
+      { getBoundingClientRect: () => ({ top: 200, bottom: 450 }) },
+      { getBoundingClientRect: () => ({ top: 450, bottom: 800 }) },
+      { getBoundingClientRect: () => ({ top: 800, bottom: 1200 }) },
+    ];
+
+    const mockReader = {
+      scrollTop: 0,
+      scrollHeight: 2400,
+      clientHeight: 600,
+      getBoundingClientRect: () => ({ top: 100, bottom: 700 }),
+      querySelector: (selector) => {
+        const match = selector.match(/data-block-index="(\d+)"/);
+        if (!match) return null;
+        return mockBlocks[Number(match[1])] ?? null;
+      },
+    };
+
+    const text = `# عنوان اول
+
+پاراگراف توضیحی برای تست اسکرول همگام.
+خط دوم پاراگراف.
+
+- مورد اول لیست
+- مورد دوم لیست
+
+### بخش بعدی
+`;
+
+    const ranges = getBlockLineRanges(text);
+    assert.equal(ranges.length, 4);
+
+    const anchors = computeScrollAnchors(mockTextarea, mockReader, text, ranges);
+
+    // Each anchor array has length ranges.length + 2 (start 0, end maxScroll)
+    assert.equal(anchors.textareaAnchors.length, ranges.length + 2);
+    assert.equal(anchors.readerAnchors.length, ranges.length + 2);
+    assert.equal(anchors.pageAnchors.length, ranges.length + 2);
+
+    // Initial anchors start at 0
+    assert.equal(anchors.textareaAnchors[0], 0);
+    assert.equal(anchors.readerAnchors[0], 0);
+    assert.equal(anchors.pageAnchors[0], 0);
+
+    // Monotonicity check
+    for (let i = 1; i < anchors.textareaAnchors.length; i += 1) {
+      assert.ok(
+        anchors.textareaAnchors[i] >= anchors.textareaAnchors[i - 1],
+        `textareaAnchors must be non-decreasing at index ${i}`,
+      );
+      assert.ok(
+        anchors.readerAnchors[i] >= anchors.readerAnchors[i - 1],
+        `readerAnchors must be non-decreasing at index ${i}`,
+      );
+      assert.ok(
+        anchors.pageAnchors[i] >= anchors.pageAnchors[i - 1],
+        `pageAnchors must be non-decreasing at index ${i}`,
+      );
+    }
+
+    // Final anchors match container max scrolls
+    assert.equal(anchors.textareaAnchors.at(-1), 1000); // 1500 - 500
+    assert.equal(anchors.readerAnchors.at(-1), 1800);   // 2400 - 600
+    assert.equal(anchors.pageAnchors.at(-1), 2200);     // 3000 - 800
+
+    // Bidirectional interpolation roundtrip at anchor points
+    for (let i = 0; i < anchors.textareaAnchors.length; i += 1) {
+      const pageY = interpolateScroll(
+        anchors.textareaAnchors[i],
+        anchors.textareaAnchors,
+        anchors.pageAnchors,
+      );
+      assert.equal(pageY, anchors.pageAnchors[i]);
+
+      const textareaY = interpolateScroll(
+        anchors.pageAnchors[i],
+        anchors.pageAnchors,
+        anchors.textareaAnchors,
+      );
+      assert.equal(textareaY, anchors.textareaAnchors[i]);
+    }
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.document = originalDocument;
   }
 });

@@ -259,6 +259,46 @@ a:focus-visible {
   flex-direction: column;
 }
 
+@media (min-width: 901px) {
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    min-height: 580px;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-header,
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-footer {
+    min-height: 56px;
+    padding-inline: 20px;
+    flex: 0 0 auto;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .typography-panel {
+    flex: 0 0 auto;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .reader {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) textarea {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+}
+
 .preview-panel {
   border-right: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface-solid) 72%, var(--warm));
@@ -543,7 +583,9 @@ button:disabled {
 .rendered-text blockquote,
 .rendered-text h2,
 .rendered-text h3,
-.rendered-text h4 {
+.rendered-text h4,
+.rendered-text h5,
+.rendered-text h6 {
   text-align: start;
   unicode-bidi: isolate;
 }
@@ -599,7 +641,9 @@ button:disabled {
    rendered at the same weight as body text and lost their heading role. */
 .rendered-text h2,
 .rendered-text h3,
-.rendered-text h4 {
+.rendered-text h4,
+.rendered-text h5,
+.rendered-text h6 {
   margin: 1.5em 0 0.6em;
   font-weight: 700;
   line-height: 1.65;
@@ -615,6 +659,14 @@ button:disabled {
 
 .rendered-text h4 {
   font-size: 1.12em;
+}
+
+.rendered-text h5 {
+  font-size: 1.05em;
+}
+
+.rendered-text h6 {
+  font-size: 1em;
 }
 
 /* Tailwind's preflight strips list markers (`list-style: none`), so bullets and

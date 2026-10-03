@@ -118,12 +118,18 @@ export function measureTextareaLineTops(
   mirror.innerHTML = fragments.join("");
   document.body.appendChild(mirror);
 
+  const mirrorRect = typeof mirror.getBoundingClientRect === "function"
+    ? mirror.getBoundingClientRect()
+    : null;
   const paddingTop = parseFloat(computed.paddingTop) || 0;
   const tops = targetLines.map((lineIndex) => {
     const marker = mirror.querySelector(`#khana-line-${lineIndex}`) as HTMLElement | null;
     if (!marker) return 0;
-    // marker.offsetTop is relative to mirror border box; subtract paddingTop so scrollTop=0 matches line 0
-    return Math.max(0, marker.offsetTop - paddingTop);
+    if (mirrorRect && typeof marker.getBoundingClientRect === "function" && mirrorRect.height > 0) {
+      const markerRect = marker.getBoundingClientRect();
+      return Math.max(0, markerRect.top - mirrorRect.top - paddingTop);
+    }
+    return Math.max(0, (marker.offsetTop ?? 0) - paddingTop);
   });
 
   document.body.removeChild(mirror);
@@ -148,12 +154,10 @@ export function computeScrollAnchors(
   const measuredTextareaTops = measureTextareaLineTops(textarea, lines, targetLines);
 
   const readerRect = reader.getBoundingClientRect();
-  const currentReaderScroll = reader.scrollTop;
-  const textareaRect = textarea.getBoundingClientRect();
-  const textareaPaddingTop = typeof window !== "undefined"
-    ? parseFloat(window.getComputedStyle(textarea).paddingTop) || 0
+  const readerPaddingTop = typeof window !== "undefined"
+    ? parseFloat(window.getComputedStyle(reader).paddingTop) || 0
     : 0;
-  const textareaContentTop = textareaRect.top + textareaPaddingTop;
+  const currentReaderScroll = reader.scrollTop;
   const currentWindowScroll = typeof window !== "undefined" ? window.scrollY : 0;
 
   const textareaAnchors: number[] = [0];
@@ -177,11 +181,12 @@ export function computeScrollAnchors(
 
     if (blockEl) {
       const blockRect = blockEl.getBoundingClientRect();
-      const relativeTop = blockRect.top - readerRect.top + currentReaderScroll;
-      readerTop = Math.max(prevReader, relativeTop);
+      const relativeTop = blockRect.top - readerRect.top - readerPaddingTop + currentReaderScroll;
+      readerTop = Math.max(prevReader, Math.max(0, relativeTop));
 
       const blockDocTop = blockRect.top + currentWindowScroll;
-      pageTop = Math.max(prevPage, Math.max(0, blockDocTop - textareaContentTop));
+      const targetPageScroll = i === 0 ? 0 : Math.max(0, blockDocTop - 80);
+      pageTop = Math.max(prevPage, targetPageScroll);
     }
 
     prevReader = readerTop;
@@ -211,12 +216,12 @@ export function computeScrollAnchors(
  * markdown line with whatever rendered block is currently at the viewing line of the screen.
  */
 export function getSynchronizedTextareaScroll(
-  textarea: HTMLTextAreaElement,
-  reader: HTMLElement,
+  textarea: HTMLTextAreaElement | null,
+  reader: HTMLElement | null,
   measuredTextareaTops: number[],
   rangesCount: number,
 ): number {
-  if (rangesCount === 0 || measuredTextareaTops.length === 0 || typeof window === "undefined") {
+  if (!textarea || !reader || rangesCount === 0 || measuredTextareaTops.length === 0 || typeof window === "undefined") {
     return 0;
   }
 
@@ -282,12 +287,12 @@ export function getSynchronizedTextareaScroll(
  * the rendered block aligns horizontally on the screen with the textarea's current line.
  */
 export function getSynchronizedScrollForTextarea(
-  textarea: HTMLTextAreaElement,
-  reader: HTMLElement,
+  textarea: HTMLTextAreaElement | null,
+  reader: HTMLElement | null,
   measuredTextareaTops: number[],
   rangesCount: number,
 ): { targetWindowY: number; targetReaderTop: number } {
-  if (typeof window === "undefined" || rangesCount === 0 || measuredTextareaTops.length === 0) {
+  if (!textarea || !reader || typeof window === "undefined" || rangesCount === 0 || measuredTextareaTops.length === 0) {
     return { targetWindowY: 0, targetReaderTop: 0 };
   }
 

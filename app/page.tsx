@@ -20,8 +20,6 @@ import {
 } from "./lib/parse-blocks";
 import {
   computeScrollAnchors,
-  getSynchronizedScrollForTextarea,
-  getSynchronizedTextareaScroll,
   interpolateScroll,
   measureTextareaLineTops,
   type ScrollAnchors,
@@ -195,6 +193,11 @@ export default function Home() {
       refreshAnchors();
     });
     window.addEventListener("resize", refreshAnchors);
+    if (typeof document !== "undefined" && "fonts" in document) {
+      document.fonts.ready.then(() => {
+        refreshAnchors();
+      });
+    }
     return () => {
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", refreshAnchors);
@@ -229,17 +232,14 @@ export default function Home() {
     const readerEl = readerRef.current;
     const isReaderScrollable = readerEl.scrollHeight > readerEl.clientHeight + 2;
 
+    let anchors = anchorsRef.current;
+    if (!anchors) {
+      refreshAnchors();
+      anchors = anchorsRef.current;
+    }
+    if (!anchors) return;
+
     if (isReaderScrollable) {
-      let anchors = anchorsRef.current;
-      if (!anchors) {
-        anchors = computeScrollAnchors(
-          textareaRef.current,
-          readerRef.current,
-          text,
-          lineRanges,
-        );
-        anchorsRef.current = anchors;
-      }
       const targetTop = interpolateScroll(
         textareaRef.current.scrollTop,
         anchors.textareaAnchors,
@@ -247,24 +247,14 @@ export default function Home() {
       );
       readerEl.scrollTop = targetTop;
     } else if (typeof window !== "undefined") {
-      if (measuredTopsRef.current.length === 0) {
-        const lines = text.replace(/\r\n/g, "\n").split("\n");
-        const targetLines = lineRanges.map((r) => r.startLine);
-        measuredTopsRef.current = measureTextareaLineTops(
-          textareaRef.current,
-          lines,
-          targetLines,
-        );
-      }
-      const { targetWindowY } = getSynchronizedScrollForTextarea(
-        textareaRef.current,
-        readerEl,
-        measuredTopsRef.current,
-        lineRanges.length,
+      const targetWindowY = interpolateScroll(
+        textareaRef.current.scrollTop,
+        anchors.textareaAnchors,
+        anchors.pageAnchors,
       );
       window.scrollTo({ top: targetWindowY, behavior: "instant" });
     }
-  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, refreshAnchors]);
 
   const handleReaderScroll = useCallback(() => {
     if (
@@ -290,14 +280,10 @@ export default function Home() {
 
     let anchors = anchorsRef.current;
     if (!anchors) {
-      anchors = computeScrollAnchors(
-        textareaRef.current,
-        readerRef.current,
-        text,
-        lineRanges,
-      );
-      anchorsRef.current = anchors;
+      refreshAnchors();
+      anchors = anchorsRef.current;
     }
+    if (!anchors) return;
 
     const targetTop = interpolateScroll(
       readerRef.current.scrollTop,
@@ -306,7 +292,7 @@ export default function Home() {
     );
 
     textareaRef.current.scrollTop = targetTop;
-  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, refreshAnchors]);
 
   useEffect(() => {
     function handleWindowScroll() {
@@ -341,20 +327,17 @@ export default function Home() {
       }
       windowScrollRafRef.current = window.requestAnimationFrame(() => {
         if (!textareaRef.current || !readerRef.current) return;
-        if (measuredTopsRef.current.length === 0) {
-          const lines = text.replace(/\r\n/g, "\n").split("\n");
-          const targetLines = lineRanges.map((r) => r.startLine);
-          measuredTopsRef.current = measureTextareaLineTops(
-            textareaRef.current,
-            lines,
-            targetLines,
-          );
+        let anchors = anchorsRef.current;
+        if (!anchors) {
+          refreshAnchors();
+          anchors = anchorsRef.current;
         }
-        const targetTextareaTop = getSynchronizedTextareaScroll(
-          textareaRef.current,
-          readerRef.current,
-          measuredTopsRef.current,
-          lineRanges.length,
+        if (!anchors) return;
+
+        const targetTextareaTop = interpolateScroll(
+          window.scrollY,
+          anchors.pageAnchors,
+          anchors.textareaAnchors,
         );
         textareaRef.current.scrollTop = targetTextareaTop;
       });
@@ -367,7 +350,7 @@ export default function Home() {
         window.cancelAnimationFrame(windowScrollRafRef.current);
       }
     };
-  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, refreshAnchors]);
 
   const characterCount = text.length.toLocaleString("fa-IR");
   const { fontSize, darkMode, fontFamily, lineHeight, measure, paragraphGap } = settings;
@@ -702,7 +685,8 @@ export default function Home() {
                     }
 
                     if (block.type === "heading") {
-                      const Heading = `h${block.level + 1}` as "h2" | "h3" | "h4";
+                      const headingLevel = Math.min(block.level + 1, 6);
+                      const Heading = `h${headingLevel}` as "h2" | "h3" | "h4" | "h5" | "h6";
                       return (
                         <Heading
                           key={index}

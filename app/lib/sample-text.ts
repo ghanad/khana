@@ -106,6 +106,18 @@ console.log(greet("خوانا"));
 | این | جدول | هم نیست |
 \`\`\`
 
+کدهای تورفته و کانفیگ‌های YAML با خطوط تیره هم در قالب بلوک کد سالم می‌مانند:
+
+  \`\`\`yaml
+  watchtower:
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    command: --interval 300 khana-app
+  \`\`\`
+
 ## نرمال‌سازی حروف
 
 حروف عربی به شکل فارسی تبدیل می‌شوند:كتاب با ي و ك عربی، و ة به ه. اعداد فارسی ۰۱۲۳۴۵۶۷۸۹ باید از ۰۱۲۳۴۵۶۷۸۹ خوانده شوند. گیومهٔ 'تکی' به «» تبدیل می‌شود.

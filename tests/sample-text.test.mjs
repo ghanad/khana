@@ -49,3 +49,15 @@ test("sample text mixes English and Persian inside one ordered list", async () =
   // English items stay LTR while a Persian item in the same list stays RTL.
   assert.ok(mixed.items.some((item) => getTextDirection(item) === "rtl"));
 });
+
+test("sample text includes an indented YAML code block", () => {
+  const blocks = parseBlocks(sampleText);
+  const yamlBlock = blocks.find(
+    (block) => block.type === "code" && block.language === "yaml",
+  );
+
+  assert.ok(yamlBlock, "expected an indented YAML code block in sample text");
+  assert.match(yamlBlock.content, /watchtower:/);
+  assert.match(yamlBlock.content, /- \/var\/run\/docker\.sock/);
+});
+

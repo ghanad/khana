@@ -29,11 +29,16 @@ test("keeps markdown syntax inside code blocks verbatim", () => {
   assert.equal(blocks[0].content, "- not a list\n# not a heading");
 });
 
-test("parses headings and shifts their level", () => {
-  const blocks = parseBlocks("# عنوان\n### زیرعنوان");
+test("parses headings up to level 6", () => {
+  const blocks = parseBlocks("# یک\n## دو\n### سه\n#### نحوه کار:\n##### پنج\n###### شش\n####### هفت");
   assert.deepEqual(blocks, [
-    { type: "heading", content: "عنوان", level: 1 },
-    { type: "heading", content: "زیرعنوان", level: 3 },
+    { type: "heading", content: "یک", level: 1 },
+    { type: "heading", content: "دو", level: 2 },
+    { type: "heading", content: "سه", level: 3 },
+    { type: "heading", content: "نحوه کار:", level: 4 },
+    { type: "heading", content: "پنج", level: 5 },
+    { type: "heading", content: "شش", level: 6 },
+    { type: "paragraph", content: "####### هفت" },
   ]);
 });
 
@@ -141,3 +146,74 @@ test("the sample text keeps its pipes-without-delimiter row as plain text", asyn
   );
   assert.ok(plain, "expected the non-table pipe row to stay a paragraph");
 });
+
+test("parses indented code blocks and strips relative indentation", () => {
+  const input = [
+    "  ```yaml",
+    "  watchtower:",
+    "    image: containrrr/watchtower",
+    "    restart: always",
+    "    volumes:",
+    "      - /var/run/docker.sock:/var/run/docker.sock",
+    "",
+    "    command: --interval 300 khana-app",
+    "  ```",
+  ].join("\n");
+
+  const blocks = parseBlocks(input);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, "code");
+  assert.equal(blocks[0].language, "yaml");
+  assert.equal(
+    blocks[0].content,
+    [
+      "watchtower:",
+      "  image: containrrr/watchtower",
+      "  restart: always",
+      "  volumes:",
+      "    - /var/run/docker.sock:/var/run/docker.sock",
+      "",
+      "  command: --interval 300 khana-app",
+    ].join("\n"),
+  );
+});
+
+test("parses code blocks preceded by invisible bidi control characters", () => {
+  const input = "\u200E```yaml\nwatchtower:\n  image: containrrr/watchtower\n\u200F```";
+  const blocks = parseBlocks(input);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, "code");
+  assert.equal(blocks[0].language, "yaml");
+  assert.equal(blocks[0].content, "watchtower:\n  image: containrrr/watchtower");
+});
+
+test("parses code blocks fenced with tildes", () => {
+  const input = "~~~python\nprint('hello')\n~~~";
+  const blocks = parseBlocks(input);
+  assert.deepEqual(blocks, [{ type: "code", content: "print('hello')", language: "python" }]);
+});
+
+test("parses code blocks with more than 3 backticks and preserves inner backticks", () => {
+  const input = "````markdown\n```js\nconst x = 1;\n```\n````";
+  const blocks = parseBlocks(input);
+  assert.deepEqual(blocks, [
+    { type: "code", content: "```js\nconst x = 1;\n```", language: "markdown" },
+  ]);
+});
+
+test("parses headings, lists, quotes, and tables preceded by bidi control characters", () => {
+  const heading = parseBlocks("\u200F# عنوان فارسی");
+  assert.deepEqual(heading, [{ type: "heading", level: 1, content: "عنوان فارسی" }]);
+
+  const list = parseBlocks("\u200E- آیتم یک\n\u200E- آیتم دو");
+  assert.deepEqual(list, [{ type: "list", items: ["آیتم یک", "آیتم دو"], ordered: false }]);
+
+  const quote = parseBlocks("\u200F> متن نقل‌قول");
+  assert.deepEqual(quote, [{ type: "quote", content: "متن نقل‌قول" }]);
+
+  const table = parseBlocks("\u200F| سرستون |\n\u200F|---|\n\u200F| داده |");
+  assert.equal(table[0].type, "table");
+  assert.deepEqual(table[0].header, ["سرستون"]);
+  assert.deepEqual(table[0].rows, [["داده"]]);
+});
+
