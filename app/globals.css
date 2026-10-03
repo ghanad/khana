@@ -259,6 +259,32 @@ a:focus-visible {
   flex-direction: column;
 }
 
+@media (min-width: 901px) {
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) {
+    height: calc(100vh - 170px);
+    height: calc(100dvh - 170px);
+    min-height: 560px;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-header,
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-footer,
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .typography-panel {
+    flex: 0 0 auto;
+  }
+
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .reader,
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) textarea {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 .preview-panel {
   border-right: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface-solid) 72%, var(--warm));
