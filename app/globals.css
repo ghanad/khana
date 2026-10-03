@@ -493,9 +493,9 @@ button:disabled {
   background: var(--surface-solid);
 }
 
-/* Only the stepper buttons are fixed-size squares; the typography toggle is a
-   child of this row too and needs its label width (see .typography-toggle). */
-.reader-tools > button:not(.typography-toggle) {
+/* Only the stepper buttons are fixed-size squares; the typography toggle and
+   sync-scroll toggle are children of this row too and need their label width. */
+.reader-tools > button:not(.typography-toggle):not(.sync-scroll-toggle) {
   width: 33px;
   height: 100%;
   flex: 0 0 auto;
@@ -772,6 +772,7 @@ button:disabled {
 .focus-mode .workspace.input-collapsed {
   display: block;
   grid-template-columns: 1fr;
+  height: auto;
 }
 
 .focus-mode .preview-panel {
@@ -822,6 +823,31 @@ button:disabled {
 .reader-tools .typography-toggle:hover {
   color: var(--accent);
   background: var(--accent-soft);
+}
+
+.sync-scroll-toggle {
+  height: 100%;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.reader-tools .sync-scroll-toggle:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.reader-tools .sync-scroll-toggle.is-active {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  font-weight: 700;
 }
 
 .typography-panel {

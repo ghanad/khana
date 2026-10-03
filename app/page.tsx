@@ -13,7 +13,19 @@ import { InlineText } from "./components/inline-text";
 import { TypographyControls } from "./components/typography-controls";
 import { getTextDirection } from "./lib/direction";
 import { planPaste } from "./lib/paste";
-import { parseBlocks, type CellAlignment } from "./lib/parse-blocks";
+import {
+  getBlockLineRanges,
+  parseBlocks,
+  type CellAlignment,
+} from "./lib/parse-blocks";
+import {
+  computeScrollAnchors,
+  getSynchronizedScrollForTextarea,
+  getSynchronizedTextareaScroll,
+  interpolateScroll,
+  measureTextareaLineTops,
+  type ScrollAnchors,
+} from "./lib/sync-scroll";
 import { sampleText } from "./lib/sample-text";
 import { DEFAULT_SETTINGS, type ReaderSettings } from "./lib/settings";
 import {
@@ -64,8 +76,15 @@ export default function Home() {
   const [isInputCollapsed, setIsInputCollapsed] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isTypographyOpen, setIsTypographyOpen] = useState(false);
+  const [isSyncScroll, setIsSyncScroll] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const anchorsRef = useRef<ScrollAnchors | null>(null);
+  const measuredTopsRef = useRef<number[]>([]);
+  const windowScrollRafRef = useRef<number | null>(null);
+  const scrollingSourceRef = useRef<"textarea" | "reader" | "window" | null>(null);
+  const syncScrollTimerRef = useRef<number | null>(null);
 
   // Read the stored document and settings once the client takes over; the
   // server snapshot keeps the first render identical to the SSR output.
@@ -142,6 +161,214 @@ export default function Home() {
   }, [changeFontSize, isFocusMode]);
 
   const blocks = useMemo(() => parseBlocks(text), [text]);
+  const lineRanges = useMemo(() => getBlockLineRanges(text), [text]);
+
+  const refreshAnchors = useCallback(() => {
+    if (
+      !textareaRef.current ||
+      !readerRef.current ||
+      !isSyncScroll ||
+      isInputCollapsed ||
+      isFocusMode
+    ) {
+      anchorsRef.current = null;
+      measuredTopsRef.current = [];
+      return;
+    }
+    const lines = text.replace(/\r\n/g, "\n").split("\n");
+    const targetLines = lineRanges.map((r) => r.startLine);
+    measuredTopsRef.current = measureTextareaLineTops(
+      textareaRef.current,
+      lines,
+      targetLines,
+    );
+    anchorsRef.current = computeScrollAnchors(
+      textareaRef.current,
+      readerRef.current,
+      text,
+      lineRanges,
+    );
+  }, [text, lineRanges, isSyncScroll, isInputCollapsed, isFocusMode]);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      refreshAnchors();
+    });
+    window.addEventListener("resize", refreshAnchors);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", refreshAnchors);
+    };
+  }, [refreshAnchors, settings]);
+
+  const handleTextareaScroll = useCallback(() => {
+    if (
+      !isSyncScroll ||
+      isInputCollapsed ||
+      isFocusMode ||
+      !readerRef.current ||
+      !textareaRef.current
+    ) {
+      return;
+    }
+    if (
+      scrollingSourceRef.current === "reader" ||
+      scrollingSourceRef.current === "window"
+    ) {
+      return;
+    }
+
+    scrollingSourceRef.current = "textarea";
+    if (syncScrollTimerRef.current !== null) {
+      window.clearTimeout(syncScrollTimerRef.current);
+    }
+    syncScrollTimerRef.current = window.setTimeout(() => {
+      scrollingSourceRef.current = null;
+    }, 60);
+
+    const readerEl = readerRef.current;
+    const isReaderScrollable = readerEl.scrollHeight > readerEl.clientHeight + 2;
+
+    if (isReaderScrollable) {
+      let anchors = anchorsRef.current;
+      if (!anchors) {
+        anchors = computeScrollAnchors(
+          textareaRef.current,
+          readerRef.current,
+          text,
+          lineRanges,
+        );
+        anchorsRef.current = anchors;
+      }
+      const targetTop = interpolateScroll(
+        textareaRef.current.scrollTop,
+        anchors.textareaAnchors,
+        anchors.readerAnchors,
+      );
+      readerEl.scrollTop = targetTop;
+    } else if (typeof window !== "undefined") {
+      if (measuredTopsRef.current.length === 0) {
+        const lines = text.replace(/\r\n/g, "\n").split("\n");
+        const targetLines = lineRanges.map((r) => r.startLine);
+        measuredTopsRef.current = measureTextareaLineTops(
+          textareaRef.current,
+          lines,
+          targetLines,
+        );
+      }
+      const { targetWindowY } = getSynchronizedScrollForTextarea(
+        textareaRef.current,
+        readerEl,
+        measuredTopsRef.current,
+        lineRanges.length,
+      );
+      window.scrollTo({ top: targetWindowY, behavior: "instant" });
+    }
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+
+  const handleReaderScroll = useCallback(() => {
+    if (
+      !isSyncScroll ||
+      isInputCollapsed ||
+      isFocusMode ||
+      !textareaRef.current ||
+      !readerRef.current
+    ) {
+      return;
+    }
+    if (scrollingSourceRef.current === "textarea") {
+      return;
+    }
+
+    scrollingSourceRef.current = "reader";
+    if (syncScrollTimerRef.current !== null) {
+      window.clearTimeout(syncScrollTimerRef.current);
+    }
+    syncScrollTimerRef.current = window.setTimeout(() => {
+      scrollingSourceRef.current = null;
+    }, 60);
+
+    let anchors = anchorsRef.current;
+    if (!anchors) {
+      anchors = computeScrollAnchors(
+        textareaRef.current,
+        readerRef.current,
+        text,
+        lineRanges,
+      );
+      anchorsRef.current = anchors;
+    }
+
+    const targetTop = interpolateScroll(
+      readerRef.current.scrollTop,
+      anchors.readerAnchors,
+      anchors.textareaAnchors,
+    );
+
+    textareaRef.current.scrollTop = targetTop;
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+
+  useEffect(() => {
+    function handleWindowScroll() {
+      if (
+        !isSyncScroll ||
+        isInputCollapsed ||
+        isFocusMode ||
+        !textareaRef.current ||
+        !readerRef.current
+      ) {
+        return;
+      }
+      if (scrollingSourceRef.current === "textarea") {
+        return;
+      }
+      const isReaderScrollable =
+        readerRef.current.scrollHeight > readerRef.current.clientHeight + 2;
+      if (isReaderScrollable) {
+        return;
+      }
+
+      scrollingSourceRef.current = "window";
+      if (syncScrollTimerRef.current !== null) {
+        window.clearTimeout(syncScrollTimerRef.current);
+      }
+      syncScrollTimerRef.current = window.setTimeout(() => {
+        scrollingSourceRef.current = null;
+      }, 60);
+
+      if (windowScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(windowScrollRafRef.current);
+      }
+      windowScrollRafRef.current = window.requestAnimationFrame(() => {
+        if (!textareaRef.current || !readerRef.current) return;
+        if (measuredTopsRef.current.length === 0) {
+          const lines = text.replace(/\r\n/g, "\n").split("\n");
+          const targetLines = lineRanges.map((r) => r.startLine);
+          measuredTopsRef.current = measureTextareaLineTops(
+            textareaRef.current,
+            lines,
+            targetLines,
+          );
+        }
+        const targetTextareaTop = getSynchronizedTextareaScroll(
+          textareaRef.current,
+          readerRef.current,
+          measuredTopsRef.current,
+          lineRanges.length,
+        );
+        textareaRef.current.scrollTop = targetTextareaTop;
+      });
+    }
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleWindowScroll);
+      if (windowScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(windowScrollRafRef.current);
+      }
+    };
+  }, [isSyncScroll, isInputCollapsed, isFocusMode, text, lineRanges]);
+
   const characterCount = text.length.toLocaleString("fa-IR");
   const { fontSize, darkMode, fontFamily, lineHeight, measure, paragraphGap } = settings;
 
@@ -358,6 +585,7 @@ export default function Home() {
                   value={text}
                   onChange={(event) => setText(event.target.value)}
                   onPaste={handlePaste}
+                  onScroll={handleTextareaScroll}
                   placeholder="متن خود را اینجا بنویسید یا بچسبانید…"
                   aria-label="متن ورودی"
                   spellCheck="false"
@@ -414,6 +642,19 @@ export default function Home() {
                   +
                 </button>
                 <button
+                  className={`sync-scroll-toggle ${isSyncScroll ? "is-active" : ""}`}
+                  type="button"
+                  onClick={() => setIsSyncScroll((current) => !current)}
+                  aria-pressed={isSyncScroll}
+                  title={
+                    isSyncScroll
+                      ? "اسکرول همگام فعال است (کلیک برای غیرفعال‌کردن)"
+                      : "اسکرول همگام غیرفعال است (کلیک برای فعال‌کردن)"
+                  }
+                >
+                  اسکرول همگام
+                </button>
+                <button
                   className="typography-toggle"
                   type="button"
                   onClick={() => setIsTypographyOpen((current) => !current)}
@@ -435,8 +676,10 @@ export default function Home() {
             )}
 
             <div
+              ref={readerRef}
               className="reader"
               style={readerStyle}
+              onScroll={handleReaderScroll}
               aria-live="polite"
             >
               {!text.trim() ? (
@@ -446,7 +689,12 @@ export default function Home() {
                   {blocks.map((block, index) => {
                     if (block.type === "code") {
                       return (
-                        <div className="code-block" key={index} dir="ltr">
+                        <div
+                          className="code-block"
+                          key={index}
+                          dir="ltr"
+                          data-block-index={index}
+                        >
                           {block.language && <small>{block.language}</small>}
                           <pre>{block.content}</pre>
                         </div>
@@ -456,7 +704,11 @@ export default function Home() {
                     if (block.type === "heading") {
                       const Heading = `h${block.level + 1}` as "h2" | "h3" | "h4";
                       return (
-                        <Heading key={index} dir={getTextDirection(block.content)}>
+                        <Heading
+                          key={index}
+                          dir={getTextDirection(block.content)}
+                          data-block-index={index}
+                        >
                           <InlineText>{block.content}</InlineText>
                         </Heading>
                       );
@@ -468,6 +720,7 @@ export default function Home() {
                         <List
                           key={index}
                           dir={getTextDirection(block.items[0] ?? "")}
+                          data-block-index={index}
                         >
                           {block.items.map((item, itemIndex) => (
                             <li key={itemIndex} dir={getTextDirection(item)}>
@@ -483,6 +736,7 @@ export default function Home() {
                         <blockquote
                           key={index}
                           dir={getTextDirection(block.content)}
+                          data-block-index={index}
                         >
                           <InlineText>{block.content}</InlineText>
                         </blockquote>
@@ -491,7 +745,11 @@ export default function Home() {
 
                     if (block.type === "table") {
                       return (
-                        <div className="table-scroll" key={index}>
+                        <div
+                          className="table-scroll"
+                          key={index}
+                          data-block-index={index}
+                        >
                           <table
                             className="data-table"
                             dir={getTextDirection(block.header.join(""))}
@@ -530,7 +788,11 @@ export default function Home() {
                     }
 
                     return (
-                      <p key={index} dir={getTextDirection(block.content)}>
+                      <p
+                        key={index}
+                        dir={getTextDirection(block.content)}
+                        data-block-index={index}
+                      >
                         <InlineText>{block.content}</InlineText>
                       </p>
                     );

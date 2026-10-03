@@ -86,9 +86,19 @@ function fitRow(cells: string[], width: number): string[] {
   return Array.from({ length: width }, (_, index) => cells[index] ?? "");
 }
 
-export function parseBlocks(input: string): Block[] {
+export interface BlockLineRange {
+  startLine: number;
+  endLine: number;
+}
+
+export interface ParsedBlockWithRange {
+  block: Block;
+  range: BlockLineRange;
+}
+
+export function parseBlocksWithRanges(input: string): ParsedBlockWithRange[] {
   const lines = input.replace(/\r\n/g, "\n").split("\n");
-  const blocks: Block[] = [];
+  const result: ParsedBlockWithRange[] = [];
   let index = 0;
 
   while (index < lines.length) {
@@ -99,6 +109,8 @@ export function parseBlocks(input: string): Block[] {
       continue;
     }
 
+    const startLine = index;
+
     if (line.startsWith("```")) {
       const language = line.slice(3).trim();
       const code: string[] = [];
@@ -107,19 +119,27 @@ export function parseBlocks(input: string): Block[] {
         code.push(lines[index]);
         index += 1;
       }
-      blocks.push({ type: "code", content: code.join("\n"), language });
-      index += 1;
+      if (index < lines.length && lines[index].startsWith("```")) {
+        index += 1;
+      }
+      result.push({
+        block: { type: "code", content: code.join("\n"), language },
+        range: { startLine, endLine: index - 1 },
+      });
       continue;
     }
 
     const heading = line.match(/^(#{1,3})\s+(.+)$/);
     if (heading) {
-      blocks.push({
-        type: "heading",
-        level: heading[1].length,
-        content: heading[2],
-      });
       index += 1;
+      result.push({
+        block: {
+          type: "heading",
+          level: heading[1].length,
+          content: heading[2],
+        },
+        range: { startLine, endLine: index - 1 },
+      });
       continue;
     }
 
@@ -136,7 +156,10 @@ export function parseBlocks(input: string): Block[] {
         items.push(match[1]);
         index += 1;
       }
-      blocks.push({ type: "list", items, ordered: isOrdered });
+      result.push({
+        block: { type: "list", items, ordered: isOrdered },
+        range: { startLine, endLine: index - 1 },
+      });
       continue;
     }
 
@@ -146,7 +169,10 @@ export function parseBlocks(input: string): Block[] {
         quote.push(lines[index].slice(2));
         index += 1;
       }
-      blocks.push({ type: "quote", content: quote.join(" ") });
+      result.push({
+        block: { type: "quote", content: quote.join(" ") },
+        range: { startLine, endLine: index - 1 },
+      });
       continue;
     }
 
@@ -161,7 +187,10 @@ export function parseBlocks(input: string): Block[] {
         rows.push(fitRow(splitTableRow(lines[index]), header.length));
         index += 1;
       }
-      blocks.push({ type: "table", header, rows, align });
+      result.push({
+        block: { type: "table", header, rows, align },
+        range: { startLine, endLine: index - 1 },
+      });
       continue;
     }
 
@@ -180,8 +209,20 @@ export function parseBlocks(input: string): Block[] {
       paragraph.push(lines[index]);
       index += 1;
     }
-    blocks.push({ type: "paragraph", content: paragraph.join("\n") });
+    result.push({
+      block: { type: "paragraph", content: paragraph.join("\n") },
+      range: { startLine, endLine: index - 1 },
+    });
   }
 
-  return blocks;
+  return result;
 }
+
+export function parseBlocks(input: string): Block[] {
+  return parseBlocksWithRanges(input).map((entry) => entry.block);
+}
+
+export function getBlockLineRanges(input: string): BlockLineRange[] {
+  return parseBlocksWithRanges(input).map((entry) => entry.range);
+}
+
