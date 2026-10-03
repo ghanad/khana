@@ -685,7 +685,8 @@ export default function Home() {
                     }
 
                     if (block.type === "heading") {
-                      const Heading = `h${block.level + 1}` as "h2" | "h3" | "h4";
+                      const headingLevel = Math.min(block.level + 1, 6);
+                      const Heading = `h${headingLevel}` as "h2" | "h3" | "h4" | "h5" | "h6";
                       return (
                         <Heading
                           key={index}

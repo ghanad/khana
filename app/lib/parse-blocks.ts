@@ -210,7 +210,7 @@ export function parseBlocksWithRanges(input: string): ParsedBlockWithRange[] {
       continue;
     }
 
-    const heading = sanitizedLine.match(/^(#{1,3})\s+(.+)$/);
+    const heading = sanitizedLine.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       index += 1;
       result.push({
@@ -297,7 +297,7 @@ export function parseBlocksWithRanges(input: string): ParsedBlockWithRange[] {
       index < lines.length &&
       lines[index].trim() &&
       !parseCodeFenceOpen(lines[index]) &&
-      !/^(#{1,3})\s+/.test(lines[index].replace(LEADING_BIDI_CONTROL_PATTERN, "")) &&
+      !/^(#{1,6})\s+/.test(lines[index].replace(LEADING_BIDI_CONTROL_PATTERN, "")) &&
       !/^\s*([-*]|\d+[.)])\s+/.test(lines[index].replace(LEADING_BIDI_CONTROL_PATTERN, "")) &&
       !/^>\s/.test(lines[index].replace(LEADING_BIDI_CONTROL_PATTERN, "")) &&
       // A table opening on the next line must not be swallowed as a soft break.

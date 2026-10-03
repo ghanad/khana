@@ -569,7 +569,9 @@ button:disabled {
 .rendered-text blockquote,
 .rendered-text h2,
 .rendered-text h3,
-.rendered-text h4 {
+.rendered-text h4,
+.rendered-text h5,
+.rendered-text h6 {
   text-align: start;
   unicode-bidi: isolate;
 }
@@ -625,7 +627,9 @@ button:disabled {
    rendered at the same weight as body text and lost their heading role. */
 .rendered-text h2,
 .rendered-text h3,
-.rendered-text h4 {
+.rendered-text h4,
+.rendered-text h5,
+.rendered-text h6 {
   margin: 1.5em 0 0.6em;
   font-weight: 700;
   line-height: 1.65;
@@ -641,6 +645,14 @@ button:disabled {
 
 .rendered-text h4 {
   font-size: 1.12em;
+}
+
+.rendered-text h5 {
+  font-size: 1.05em;
+}
+
+.rendered-text h6 {
+  font-size: 1em;
 }
 
 /* Tailwind's preflight strips list markers (`list-style: none`), so bullets and

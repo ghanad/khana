@@ -29,11 +29,16 @@ test("keeps markdown syntax inside code blocks verbatim", () => {
   assert.equal(blocks[0].content, "- not a list\n# not a heading");
 });
 
-test("parses headings and shifts their level", () => {
-  const blocks = parseBlocks("# عنوان\n### زیرعنوان");
+test("parses headings up to level 6", () => {
+  const blocks = parseBlocks("# یک\n## دو\n### سه\n#### نحوه کار:\n##### پنج\n###### شش\n####### هفت");
   assert.deepEqual(blocks, [
-    { type: "heading", content: "عنوان", level: 1 },
-    { type: "heading", content: "زیرعنوان", level: 3 },
+    { type: "heading", content: "یک", level: 1 },
+    { type: "heading", content: "دو", level: 2 },
+    { type: "heading", content: "سه", level: 3 },
+    { type: "heading", content: "نحوه کار:", level: 4 },
+    { type: "heading", content: "پنج", level: 5 },
+    { type: "heading", content: "شش", level: 6 },
+    { type: "paragraph", content: "####### هفت" },
   ]);
 });
 
