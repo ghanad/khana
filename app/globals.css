@@ -261,9 +261,9 @@ a:focus-visible {
 
 @media (min-width: 901px) {
   .app:not(.focus-mode) .workspace:not(.input-collapsed) {
-    height: calc(100vh - 170px);
-    height: calc(100dvh - 170px);
-    min-height: 560px;
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    min-height: 580px;
   }
 
   .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel {
@@ -272,16 +272,30 @@ a:focus-visible {
   }
 
   .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-header,
-  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-footer,
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel-footer {
+    min-height: 56px;
+    padding-inline: 20px;
+    flex: 0 0 auto;
+  }
+
   .app:not(.focus-mode) .workspace:not(.input-collapsed) .typography-panel {
     flex: 0 0 auto;
   }
 
-  .app:not(.focus-mode) .workspace:not(.input-collapsed) .reader,
+  .app:not(.focus-mode) .workspace:not(.input-collapsed) .reader {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
   .app:not(.focus-mode) .workspace:not(.input-collapsed) textarea {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    padding-top: 22px;
+    padding-bottom: 22px;
   }
 }
 
