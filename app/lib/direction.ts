@@ -2,6 +2,11 @@ import bidiFactory from "bidi-js";
 
 const bidi = bidiFactory();
 
+// Persian and Arabic letters pattern (covering standard and extended Arabic script letters).
+// If a paragraph contains even a single Persian/Arabic letter/word, it will be directed RTL.
+const PERSIAN_WORD_PATTERN =
+  /[\u0620-\u064A\u0670-\u06D3\u06D5\uFB50-\uFDFF\uFE70-\uFEFC]/;
+
 // Only these bidi classes are "strong". A paragraph's direction comes from the
 // first one of them it contains (Unicode UAX #9 rules P2/P3), not from whichever
 // script happens to contribute the most characters. Everything else -- digits,
@@ -17,12 +22,19 @@ function isStrongLtr(type: string) {
 /**
  * Returns the base paragraph direction for a piece of text.
  *
- * Uses the UAX #9 P2/P3 rule: the first strongly directional character wins.
- * Counting characters instead would let one long Latin word inside a Persian
- * sentence flip the whole paragraph to LTR, which is what a majority vote on
- * bidi classes used to do here.
+ * When `forcePersianRtl` is true (default), if the paragraph contains even a single
+ * Persian word, it returns "rtl".
+ * Otherwise, it uses the UAX #9 P2/P3 rule: the first strongly directional
+ * character wins, falling back to LTR.
  */
-export function getTextDirection(text: string): "rtl" | "ltr" {
+export function getTextDirection(
+  text: string,
+  forcePersianRtl: boolean = true,
+): "rtl" | "ltr" {
+  if (forcePersianRtl && PERSIAN_WORD_PATTERN.test(text)) {
+    return "rtl";
+  }
+
   for (const character of text) {
     const type = bidi.getBidiCharTypeName(character);
 

@@ -533,9 +533,9 @@ button:disabled {
   background: var(--surface-solid);
 }
 
-/* Only the stepper buttons are fixed-size squares; the typography toggle and
-   sync-scroll toggle are children of this row too and need their label width. */
-.reader-tools > button:not(.typography-toggle):not(.sync-scroll-toggle) {
+/* Only the stepper buttons are fixed-size squares; the typography toggle,
+   sync-scroll toggle, and rtl-mode toggle are children of this row too and need their label width. */
+.reader-tools > button:not(.typography-toggle):not(.sync-scroll-toggle):not(.rtl-mode-toggle) {
   width: 33px;
   height: 100%;
   flex: 0 0 auto;
@@ -877,7 +877,8 @@ button:disabled {
   background: var(--accent-soft);
 }
 
-.sync-scroll-toggle {
+.sync-scroll-toggle,
+.rtl-mode-toggle {
   height: 100%;
   flex: 0 0 auto;
   padding: 0 12px;
@@ -891,12 +892,14 @@ button:disabled {
   transition: color 160ms ease, background 160ms ease;
 }
 
-.reader-tools .sync-scroll-toggle:hover {
+.reader-tools .sync-scroll-toggle:hover,
+.reader-tools .rtl-mode-toggle:hover {
   color: var(--accent);
   background: var(--accent-soft);
 }
 
-.reader-tools .sync-scroll-toggle.is-active {
+.reader-tools .sync-scroll-toggle.is-active,
+.reader-tools .rtl-mode-toggle.is-active {
   color: var(--accent-dark);
   background: var(--accent-soft);
   font-weight: 700;

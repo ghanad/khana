@@ -15,13 +15,17 @@ test("detects right-to-left when Persian dominates a mixed sentence", () => {
   assert.equal(getTextDirection("این یک متن دربارهٔ Design است"), "rtl");
 });
 
-test("detects left-to-right when English dominates a mixed sentence", () => {
-  assert.equal(getTextDirection("Read this about طراحی"), "ltr");
+test("detects right-to-left when any Persian word exists in a mixed sentence", () => {
+  assert.equal(getTextDirection("Read this about طراحی"), "rtl");
+  assert.equal(getTextDirection("Read this about طراحی", true), "rtl");
+  // When the mode is turned off, standard first-strong rule applies
+  assert.equal(getTextDirection("Read this about طراحی", false), "ltr");
 });
 
-test("falls back to the embedding level for balanced mixed text", () => {
+test("falls back to the embedding level for empty text, but stays RTL with Persian", () => {
   assert.equal(getTextDirection(""), "ltr");
-  assert.equal(getTextDirection("a ب"), "ltr");
+  assert.equal(getTextDirection("a ب"), "rtl");
+  assert.equal(getTextDirection("a ب", false), "ltr");
 });
 
 test("keeps a Persian paragraph RTL despite one very long Latin word", () => {
@@ -32,11 +36,15 @@ test("keeps a Persian paragraph RTL despite one very long Latin word", () => {
   assert.equal(getTextDirection(`واژهٔ بسیار بلند بدون فاصله: ${latin}`), "rtl");
 });
 
-test("uses the first strong character, not the dominant script", () => {
-  // A long Persian tail must not drag an English opening to RTL.
-  assert.equal(getTextDirection("Deploy the Persian متن نمونه به‌روزرسانی شد"), "ltr");
-  // A short English word after a Persian opening must not flip it either.
+test("makes paragraph RTL if it contains Persian, regardless of opening script", () => {
+  // Even with an English opening, any Persian word makes the paragraph RTL when enabled.
+  assert.equal(getTextDirection("Deploy the Persian متن نمونه به‌روزرسانی شد"), "rtl");
   assert.equal(getTextDirection("متن فارسی با Design روشن‌تر می‌شود"), "rtl");
+  assert.equal(getTextDirection("Deploy the Persian application update"), "ltr");
+
+  // When disabled, first strong character determines direction
+  assert.equal(getTextDirection("Deploy the Persian متن نمونه به‌روزرسانی شد", false), "ltr");
+  assert.equal(getTextDirection("متن فارسی با Design روشن‌تر می‌شود", false), "rtl");
 });
 
 test("ignores leading neutral characters when picking the direction", () => {

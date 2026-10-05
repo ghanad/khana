@@ -38,6 +38,48 @@ import {
 
 const DOCUMENT_SAVE_DELAY = 300;
 const FONT_SIZE_STEP = 2;
+const SMART_RTL_KEY = "khana:smart-rtl:v1";
+
+let smartRtlSnapshot = true;
+const smartRtlListeners = new Set<() => void>();
+
+function subscribeSmartRtl(listener: () => void) {
+  smartRtlListeners.add(listener);
+  return () => {
+    smartRtlListeners.delete(listener);
+  };
+}
+
+function getSmartRtlSnapshot() {
+  return smartRtlSnapshot;
+}
+
+function getSmartRtlServerSnapshot() {
+  return true;
+}
+
+function toggleSmartRtl() {
+  smartRtlSnapshot = !smartRtlSnapshot;
+  try {
+    window.localStorage.setItem(SMART_RTL_KEY, String(smartRtlSnapshot));
+  } catch {
+    // Storage access may fail
+  }
+  for (const listener of smartRtlListeners) {
+    listener();
+  }
+}
+
+if (typeof window !== "undefined") {
+  try {
+    const stored = window.localStorage.getItem(SMART_RTL_KEY);
+    if (stored !== null) {
+      smartRtlSnapshot = stored === "true";
+    }
+  } catch {
+    // Storage access may fail
+  }
+}
 
 const FONT_FAMILY_STACKS: Record<ReaderSettings["fontFamily"], string> = {
   vazir: '"Vazirmatn", Tahoma, Arial, sans-serif',
@@ -69,6 +111,11 @@ export default function Home() {
     subscribeToReader,
     getReaderSnapshot,
     getReaderServerSnapshot,
+  );
+  const isSmartRtl = useSyncExternalStore(
+    subscribeSmartRtl,
+    getSmartRtlSnapshot,
+    getSmartRtlServerSnapshot,
   );
   const [copied, setCopied] = useState(false);
   const [isInputCollapsed, setIsInputCollapsed] = useState(false);
@@ -202,7 +249,7 @@ export default function Home() {
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", refreshAnchors);
     };
-  }, [refreshAnchors, settings]);
+  }, [refreshAnchors, settings, isSmartRtl]);
 
   const handleTextareaScroll = useCallback(() => {
     if (
@@ -638,6 +685,19 @@ export default function Home() {
                   اسکرول همگام
                 </button>
                 <button
+                  className={`rtl-mode-toggle ${isSmartRtl ? "is-active" : ""}`}
+                  type="button"
+                  onClick={toggleSmartRtl}
+                  aria-pressed={isSmartRtl}
+                  title={
+                    isSmartRtl
+                      ? "راست‌به‌چپ هوشمند فعال است (پاراگراف با کلمه فارسی، RTL می‌شود)"
+                      : "راست‌به‌چپ هوشمند غیرفعال است (حالت استاندارد متن)"
+                  }
+                >
+                  RTL هوشمند
+                </button>
+                <button
                   className="typography-toggle"
                   type="button"
                   onClick={() => setIsTypographyOpen((current) => !current)}
@@ -690,7 +750,7 @@ export default function Home() {
                       return (
                         <Heading
                           key={index}
-                          dir={getTextDirection(block.content)}
+                          dir={getTextDirection(block.content, isSmartRtl)}
                           data-block-index={index}
                         >
                           <InlineText>{block.content}</InlineText>
@@ -703,11 +763,11 @@ export default function Home() {
                       return (
                         <List
                           key={index}
-                          dir={getTextDirection(block.items[0] ?? "")}
+                          dir={getTextDirection(block.items[0] ?? "", isSmartRtl)}
                           data-block-index={index}
                         >
                           {block.items.map((item, itemIndex) => (
-                            <li key={itemIndex} dir={getTextDirection(item)}>
+                            <li key={itemIndex} dir={getTextDirection(item, isSmartRtl)}>
                               <InlineText>{item}</InlineText>
                             </li>
                           ))}
@@ -719,7 +779,7 @@ export default function Home() {
                       return (
                         <blockquote
                           key={index}
-                          dir={getTextDirection(block.content)}
+                          dir={getTextDirection(block.content, isSmartRtl)}
                           data-block-index={index}
                         >
                           <InlineText>{block.content}</InlineText>
@@ -736,7 +796,7 @@ export default function Home() {
                         >
                           <table
                             className="data-table"
-                            dir={getTextDirection(block.header.join(""))}
+                            dir={getTextDirection(block.header.join(""), isSmartRtl)}
                           >
                             <thead>
                               <tr>
@@ -757,7 +817,7 @@ export default function Home() {
                                   {row.map((cell, cellIndex) => (
                                     <td
                                       key={cellIndex}
-                                      dir={getTextDirection(cell)}
+                                      dir={getTextDirection(cell, isSmartRtl)}
                                       style={alignmentStyle(block.align[cellIndex])}
                                     >
                                       <InlineText>{cell}</InlineText>
@@ -774,7 +834,7 @@ export default function Home() {
                     return (
                       <p
                         key={index}
-                        dir={getTextDirection(block.content)}
+                        dir={getTextDirection(block.content, isSmartRtl)}
                         data-block-index={index}
                       >
                         <InlineText>{block.content}</InlineText>
