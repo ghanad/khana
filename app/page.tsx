@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { FloatingActions } from "./components/floating-actions";
 import { InlineText } from "./components/inline-text";
 import { TypographyControls } from "./components/typography-controls";
 import { getTextDirection } from "./lib/direction";
@@ -443,6 +444,18 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
+  const scrollToTop = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (textareaRef.current) {
+      textareaRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (readerRef.current) {
+      readerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
   const appClassName = [
     "app",
     darkMode ? "theme-dark" : "",
@@ -867,6 +880,17 @@ export default function Home() {
           <span>ساخته‌شده برای واژه‌هایی که شایستهٔ خوب خوانده‌شدن‌اند.</span>
         </footer>
       </div>
+
+      <FloatingActions
+        onScrollToTop={scrollToTop}
+        onPaste={pasteText}
+        onCopy={copyText}
+        isCopied={copied}
+        isFocusMode={isFocusMode}
+        onToggleFocusMode={() => setIsFocusMode((current) => !current)}
+        hasText={Boolean(text.trim())}
+        onClear={clearText}
+      />
     </main>
   );
 }

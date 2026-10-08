@@ -35,6 +35,8 @@ test("server-renders the Khana RTL home page", async () => {
   assert.match(html, /متن‌های درهم را، درست و روان بخوانید/);
   assert.match(html, /متن را وارد کنید/);
   assert.match(html, /آرام بخوانید/);
+  assert.match(html, /floating-actions/);
+  assert.match(html, /aria-label="دسترسی سریع"/);
 });
 
 test("verifies layout and metadata integrity", async () => {
