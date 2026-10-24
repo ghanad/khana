@@ -96,31 +96,32 @@ a:focus-visible {
 
 .site-header {
   display: flex;
-  min-height: 94px;
+  min-height: 52px;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
+  padding: 6px 0;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
 }
 
 .brand-mark {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border-radius: 13px 13px 13px 4px;
+  border-radius: 9px 9px 9px 3px;
   color: #fff;
   background: var(--accent);
-  font-size: 21px;
+  font-size: 16px;
   font-weight: 800;
-  box-shadow: 0 8px 20px rgba(22, 123, 98, 0.2);
+  box-shadow: 0 4px 12px rgba(22, 123, 98, 0.18);
 }
 
 .brand > span:last-child {
@@ -128,14 +129,14 @@ a:focus-visible {
 }
 
 .brand strong {
-  font-size: 19px;
+  font-size: 16px;
   line-height: 1.2;
 }
 
 .brand small {
-  margin-top: 3px;
+  margin-top: 1px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .header-actions,
@@ -145,13 +146,13 @@ a:focus-visible {
 }
 
 .header-actions {
-  gap: 12px;
+  gap: 10px;
 }
 
 .privacy-note {
-  gap: 8px;
+  gap: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .privacy-note i {
@@ -159,19 +160,19 @@ a:focus-visible {
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .icon-button {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   cursor: pointer;
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
   background: var(--surface);
-  font-size: 21px;
+  font-size: 17px;
   transition: transform 150ms ease, border-color 150ms ease;
 }
 
@@ -182,42 +183,79 @@ a:focus-visible {
 
 .intro {
   display: flex;
-  margin: 28px 0 24px;
+  margin: 10px 0 12px;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(28px, 5vw, 72px);
+  gap: 16px;
   text-align: right;
+  padding: 2px 0;
+}
+
+.intro-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 20px;
+  min-width: 0;
 }
 
 .intro-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .eyebrow {
   display: inline-flex;
-  padding: 5px 10px;
-  border-radius: 999px;
+  padding: 2px 7px;
+  border-radius: 6px;
   color: var(--accent-dark);
   background: var(--accent-soft);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .intro h1 {
-  margin: 8px 0 0;
-  font-size: clamp(27px, 2.5vw, 38px);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.45;
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .intro p {
-  max-width: 510px;
+  max-width: 480px;
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.9;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
+
+.intro-dismiss {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.intro-dismiss:hover {
+  background: var(--soft-line);
+  color: var(--ink);
+}
+
 
 .workspace {
   display: grid;
@@ -261,9 +299,14 @@ a:focus-visible {
 
 @media (min-width: 901px) {
   .app:not(.focus-mode) .workspace:not(.input-collapsed) {
-    height: calc(100vh - 64px);
-    height: calc(100dvh - 64px);
-    min-height: 580px;
+    height: calc(100vh - 120px);
+    height: calc(100dvh - 120px);
+    min-height: 520px;
+  }
+
+  .app:not(.focus-mode).intro-dismissed .workspace:not(.input-collapsed) {
+    height: calc(100vh - 74px);
+    height: calc(100dvh - 74px);
   }
 
   .app:not(.focus-mode) .workspace:not(.input-collapsed) .panel {
@@ -960,13 +1003,17 @@ button:disabled {
   }
 
   .intro {
+    align-items: flex-start;
+    margin: 10px 0 12px;
+  }
+
+  .intro-content {
     display: block;
-    margin: 24px 0 22px;
   }
 
   .intro p {
     max-width: 650px;
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .workspace {
@@ -1004,7 +1051,8 @@ button:disabled {
   }
 
   .site-header {
-    min-height: 78px;
+    min-height: 48px;
+    padding: 4px 0;
   }
 
   .privacy-note {
@@ -1016,16 +1064,17 @@ button:disabled {
   }
 
   .intro {
-    margin: 20px 0 18px;
+    margin: 8px 0 10px;
   }
 
   .intro h1 {
-    font-size: 25px;
+    font-size: 14px;
+    white-space: normal;
   }
 
   .intro p {
-    font-size: 12px;
-    line-height: 1.85;
+    font-size: 11px;
+    line-height: 1.5;
   }
 
   .workspace {

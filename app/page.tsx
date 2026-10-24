@@ -40,6 +40,8 @@ import {
 const DOCUMENT_SAVE_DELAY = 300;
 const FONT_SIZE_STEP = 2;
 const SMART_RTL_KEY = "khana:smart-rtl:v1";
+const INTRO_HIDDEN_KEY = "khana:hide-intro:v1";
+
 
 let smartRtlSnapshot = true;
 const smartRtlListeners = new Set<() => void>();
@@ -82,6 +84,49 @@ if (typeof window !== "undefined") {
   }
 }
 
+let introDismissedSnapshot = false;
+const introDismissedListeners = new Set<() => void>();
+
+function subscribeIntroDismissed(listener: () => void) {
+  introDismissedListeners.add(listener);
+  return () => {
+    introDismissedListeners.delete(listener);
+  };
+}
+
+function getIntroDismissedSnapshot() {
+  return introDismissedSnapshot;
+}
+
+function getIntroDismissedServerSnapshot() {
+  return false;
+}
+
+function setIntroDismissed(dismissed: boolean) {
+  introDismissedSnapshot = dismissed;
+  try {
+    if (dismissed) {
+      window.localStorage.setItem(INTRO_HIDDEN_KEY, "true");
+    } else {
+      window.localStorage.removeItem(INTRO_HIDDEN_KEY);
+    }
+  } catch {
+    // Storage access may fail
+  }
+  for (const listener of introDismissedListeners) {
+    listener();
+  }
+}
+
+if (typeof window !== "undefined") {
+  try {
+    introDismissedSnapshot = window.localStorage.getItem(INTRO_HIDDEN_KEY) === "true";
+  } catch {
+    // Storage access may fail
+  }
+}
+
+
 const FONT_FAMILY_STACKS: Record<ReaderSettings["fontFamily"], string> = {
   vazir: '"Vazirmatn", Tahoma, Arial, sans-serif',
   serif: 'Georgia, "Times New Roman", "Vazirmatn", serif',
@@ -117,6 +162,11 @@ export default function Home() {
     subscribeSmartRtl,
     getSmartRtlSnapshot,
     getSmartRtlServerSnapshot,
+  );
+  const isIntroDismissed = useSyncExternalStore(
+    subscribeIntroDismissed,
+    getIntroDismissedSnapshot,
+    getIntroDismissedServerSnapshot,
   );
   const [copied, setCopied] = useState(false);
   const [isInputCollapsed, setIsInputCollapsed] = useState(false);
@@ -488,6 +538,7 @@ export default function Home() {
     "app",
     darkMode ? "theme-dark" : "",
     isFocusMode ? "focus-mode" : "",
+    isIntroDismissed ? "intro-dismissed" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -519,6 +570,16 @@ export default function Home() {
               <i aria-hidden="true" />
               متن شما فقط روی همین دستگاه می‌ماند
             </span>
+            {isIntroDismissed && (
+              <button
+                className="quiet-button"
+                type="button"
+                onClick={() => setIntroDismissed(false)}
+                title="نمایش توضیحات و راهنما"
+              >
+                راهنما
+              </button>
+            )}
             <button
               className="quiet-button"
               type="button"
@@ -555,16 +616,29 @@ export default function Home() {
           </div>
         )}
 
-        <section className="intro" aria-labelledby="page-title">
-          <div className="intro-heading">
-            <span className="eyebrow">ابزار خواندن متن</span>
-            <h1 id="page-title">متن‌های درهم را، درست و روان بخوانید.</h1>
-          </div>
-          <p>
-            متن فارسیِ ترکیب‌شده با انگلیسی، کد و عدد را بچسبانید؛ «خوانا» جهت
-            و فاصله‌ها را برای مطالعه‌ای آرام‌تر مرتب می‌کند.
-          </p>
-        </section>
+        {!isIntroDismissed && (
+          <section className="intro" aria-labelledby="page-title">
+            <div className="intro-content">
+              <div className="intro-heading">
+                <span className="eyebrow">ابزار خواندن متن</span>
+                <h1 id="page-title">متن‌های درهم را، درست و روان بخوانید.</h1>
+              </div>
+              <p>
+                متن فارسیِ ترکیب‌شده با انگلیسی، کد و عدد را بچسبانید؛ «خوانا» جهت
+                و فاصله‌ها را برای مطالعه‌ای آرام‌تر مرتب می‌کند.
+              </p>
+            </div>
+            <button
+              className="intro-dismiss"
+              type="button"
+              onClick={() => setIntroDismissed(true)}
+              title="بستن این بخش برای فضای بیشتر"
+              aria-label="بستن راهنما"
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
+          </section>
+        )}
 
         <section
           className={
