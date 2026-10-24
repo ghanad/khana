@@ -206,6 +206,34 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [changeFontSize, isFocusMode]);
 
+  useEffect(() => {
+    function handleGlobalPaste(event: ClipboardEvent) {
+      if (event.defaultPrevented) return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable === true
+      ) {
+        return;
+      }
+
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
+
+      const plan = planPaste(clipboardData.getData("text"));
+      if (plan.action === "ignore") return;
+
+      event.preventDefault();
+      setText(plan.text);
+      setIsInputCollapsed(true);
+    }
+
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, [setText]);
+
   const blocks = useMemo(() => parseBlocks(text), [text]);
   const lineRanges = useMemo(() => getBlockLineRanges(text), [text]);
 
